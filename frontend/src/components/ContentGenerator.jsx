@@ -8,6 +8,7 @@ export default function ContentGenerator({ brand }) {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -99,7 +100,19 @@ export default function ContentGenerator({ brand }) {
 
           {/* Schema.org JSON-LD */}
           <div className="bg-[#111827] rounded-2xl border border-[#1E293B] p-5">
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Schema.org JSON-LD</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-300">Schema.org JSON-LD</h3>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(content.schema_jsonld, null, 2));
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 transition-all"
+              >
+                {copied ? 'Copied!' : 'Copy JSON-LD'}
+              </button>
+            </div>
             <pre className="text-xs text-cyan-300 bg-[#0B1120] rounded-xl p-4 border border-[#1E293B] overflow-auto max-h-60">
               {JSON.stringify(content.schema_jsonld, null, 2)}
             </pre>

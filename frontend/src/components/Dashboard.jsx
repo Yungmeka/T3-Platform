@@ -88,6 +88,27 @@ export default function Dashboard({ brand }) {
         <p className="text-sm text-slate-500">Quick overview of {brand.name}'s AI visibility and trust metrics</p>
       </div>
 
+      {/* How It Works Banner */}
+      <div className="mb-8 rounded-2xl border border-[#1E293B] p-4"
+           style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(34,197,94,0.05) 50%, rgba(168,85,247,0.05) 100%)' }}>
+        <div className="flex items-center justify-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold tracking-widest text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-md">TRACK</span>
+            <span className="text-xs text-slate-400">Monitor AI visibility across 4 platforms</span>
+          </div>
+          <span className="text-slate-600 text-sm">→</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold tracking-widest text-green-400 bg-green-500/10 px-2.5 py-1 rounded-md">TRUST</span>
+            <span className="text-xs text-slate-400">Detect hallucinations & generate fixes</span>
+          </div>
+          <span className="text-slate-600 text-sm">→</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold tracking-widest text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-md">TRANSFORM</span>
+            <span className="text-xs text-slate-400">Publish corrections & measure ROI</span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <StatCard label="Trust Score" value={latest?.brand_trust_score} color="purple" trend={trend('brand_trust_score')} />
         <StatCard label="Inclusion Rate" value={latest?.inclusion_rate} color="cyan" trend={trend('inclusion_rate')} />

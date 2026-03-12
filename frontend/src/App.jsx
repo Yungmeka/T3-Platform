@@ -10,6 +10,7 @@ import Audience from './components/Audience';
 import Ethics from './components/Ethics';
 import FactChecker from './components/FactChecker';
 import LiveQuery from './components/LiveQuery';
+import VisibilityScan from './components/VisibilityScan';
 
 function App() {
   const [brands, setBrands] = useState([]);
@@ -28,6 +29,7 @@ function App() {
   }, []);
 
   const pages = {
+    visibility: VisibilityScan,
     dashboard: Dashboard,
     alerts: Alerts,
     claims: Claims,

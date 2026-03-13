@@ -125,26 +125,8 @@ const DEMO_DATA = {
 };
 
 export default function Audience({ brand }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    if (!import.meta.env.VITE_BACKEND_URL) {
-      setData(DEMO_DATA);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    fetch(`${BACKEND}/api/audience/${brand.id}`, { signal: controller.signal })
-      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(d => { setData(d); setLoading(false); })
-      .catch(() => {
-        setData(DEMO_DATA);
-        setLoading(false);
-      })
-      .finally(() => clearTimeout(timeout));
-  }, [brand.id]);
+  const [data] = useState(DEMO_DATA);
+  const [loading] = useState(false);
 
   if (loading) {
     return (

@@ -48,26 +48,8 @@ const DEMO_DATA = {
 };
 
 export default function Ethics({ brand }) {
-  const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    if (!import.meta.env.VITE_BACKEND_URL) {
-      setReport(DEMO_DATA);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    fetch(`${BACKEND}/api/ethics/report/${brand.id}`, { signal: controller.signal })
-      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(d => { setReport(d); setLoading(false); })
-      .catch(() => {
-        setReport(DEMO_DATA);
-        setLoading(false);
-      })
-      .finally(() => clearTimeout(timeout));
-  }, [brand.id]);
+  const [report] = useState(DEMO_DATA);
+  const [loading] = useState(false);
 
   if (loading) return (
     <div className="space-y-6 animate-pulse">

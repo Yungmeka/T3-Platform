@@ -50,19 +50,18 @@ const DEMO_DATA = {
 export default function Ethics({ brand }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   useEffect(() => {
     setLoading(true);
-    setError(null);
-    fetch(`${BACKEND}/api/ethics/report/${brand.id}`)
-      .then(r => r.json())
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    fetch(`${BACKEND}/api/ethics/report/${brand.id}`, { signal: controller.signal })
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(d => { setReport(d); setLoading(false); })
       .catch(() => {
-        // Fallback to demo data when backend is unreachable
         setReport(DEMO_DATA);
         setLoading(false);
-      });
+      })
+      .finally(() => clearTimeout(timeout));
   }, [brand.id]);
 
   if (loading) return (
@@ -85,9 +84,6 @@ export default function Ethics({ brand }) {
     </div>
   );
 
-  if (error) return (
-    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-600 text-sm">{error}</div>
-  );
   if (!report) return null;
 
   const score = report.ethics_score;

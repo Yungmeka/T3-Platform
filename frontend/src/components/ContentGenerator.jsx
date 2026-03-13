@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 
-const BACKEND = 'http://localhost:8000';
+const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 const contentTypes = [
   { id: 'schema', name: 'Schema.org', desc: 'JSON-LD markup for AI crawlers', color: 'cyan' },
@@ -296,7 +296,7 @@ export default function ContentGenerator({ brand }) {
                   </button>
                 </div>
                 {/* Code block stays dark */}
-                <pre className="text-xs text-slate-200 bg-slate-900 rounded-xl p-4 border border-slate-700 overflow-auto max-h-60">
+                <pre className="text-xs text-slate-200 bg-slate-900 rounded-xl p-4 border border-slate-700 overflow-auto max-h-60 whitespace-pre-wrap">
                   {JSON.stringify(content.schema_jsonld, null, 2)}
                 </pre>
               </div>

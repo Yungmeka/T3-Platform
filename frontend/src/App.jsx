@@ -162,7 +162,7 @@ function App() {
           </span>
         </div>
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <div className="max-w-[1400px] mx-auto px-8 py-6">
             {selectedBrand && <ActivePage brand={selectedBrand} />}
           </div>

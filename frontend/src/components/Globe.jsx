@@ -286,7 +286,7 @@ export default function Globe({
     <canvas
       ref={canvasRef}
       className={`cursor-grab active:cursor-grabbing ${className}`}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, maxWidth: '100%' }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

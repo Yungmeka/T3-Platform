@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const BACKEND = 'http://localhost:8000';
+const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 const statusColors = {
   verified:        { bg: 'bg-emerald-50',  border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-50 border border-emerald-200 text-emerald-700' },
@@ -35,7 +35,7 @@ function TrustGauge({ score }) {
   const dashOffset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center relative">
       <div
         className="rounded-full"
         style={{
@@ -71,7 +71,7 @@ function TrustGauge({ score }) {
   );
 }
 
-export default function FactChecker() {
+export default function FactChecker({ brand }) {
   const [input, setInput] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);

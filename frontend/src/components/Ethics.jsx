@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const BACKEND = 'http://localhost:8000';
+const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 export default function Ethics({ brand }) {
   const [report, setReport] = useState(null);
@@ -141,7 +141,7 @@ export default function Ethics({ brand }) {
         >
           How We Monitor Issues Over Time
         </h3>
-        <p className="text-xs text-slate-500 mb-5">Case prompt question 1</p>
+        <p className="text-xs text-slate-500 mb-5">Compliance Monitoring</p>
 
         <div className="grid grid-cols-4 gap-4 mb-4">
           {/* Claims Analyzed */}
@@ -221,7 +221,7 @@ export default function Ethics({ brand }) {
         >
           Actions When Problems Are Found
         </h3>
-        <p className="text-xs text-slate-500 mb-5">Case prompt question 2</p>
+        <p className="text-xs text-slate-500 mb-5">Action Pipeline</p>
 
         {/* Action pipeline */}
         <div className="flex gap-3 mb-5 items-stretch">
@@ -313,7 +313,7 @@ export default function Ethics({ brand }) {
           Proving Improved Customer Trust
         </h3>
         <p className="text-xs text-slate-500 mb-5">
-          Case prompt question 3 &nbsp;|&nbsp; {trust.period}
+          Brand Trust Analysis &nbsp;|&nbsp; {trust.period}
         </p>
 
         {trust.brand_trust_score && (

@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 
-const BACKEND = 'http://localhost:8000';
+const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
-// Left border color per claim status (light theme)
+// Left border color per claim status — hex values used as inline styles
+// to avoid Tailwind purging dynamically constructed class names in production.
 const claimBorderColor = {
-  accurate:    'border-l-emerald-500',
-  hallucinated:'border-l-red-500',
-  outdated:    'border-l-amber-500',
-  missing:     'border-l-slate-300',
+  accurate:    '#10B981',
+  hallucinated:'#EF4444',
+  outdated:    '#F59E0B',
+  missing:     '#CBD5E1',
 };
 
 // Badge style per claim status (light theme)
@@ -312,11 +313,12 @@ export default function LiveQuery({ brand }) {
                   <div
                     key={i}
                     className={`
-                      border border-l-4 ${claimBorderColor[claim.status] || 'border-l-slate-300'}
+                      border
                       ${claimCardBg[claim.status] || 'bg-slate-50 border-slate-200'}
                       p-4 animate-fade-in
                     `}
                     style={{
+                      borderLeft: `4px solid ${claimBorderColor[claim.status] || claimBorderColor.missing}`,
                       borderRadius: '14px',
                       animationDelay: `${160 + i * 50}ms`,
                     }}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const BACKEND = 'http://localhost:8000';
+const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 const sampleTexts = {
   drill: `The DEWALT 20V MAX Cordless Drill is available at Home Depot for $99. It features a brushless motor with 500 in-lbs of torque and comes with a 2-year warranty. Free delivery on orders over $35.`,
@@ -364,7 +364,7 @@ export default function HDE({ brand }) {
           </div>
         </div>
         <div className="relative">
-          <pre className="text-xs font-mono rounded-xl p-4 overflow-auto max-h-60 bg-slate-900 text-slate-200" style={{ border: '1px solid #1E293B' }}>
+          <pre className="text-xs font-mono rounded-xl p-4 overflow-auto max-h-60 bg-slate-900 text-slate-200 whitespace-pre-wrap" style={{ border: '1px solid #1E293B' }}>
             {codeSnippets[activeSnippet]}
           </pre>
           <button onClick={copyCode}

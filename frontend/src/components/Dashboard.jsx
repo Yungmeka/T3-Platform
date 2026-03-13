@@ -325,7 +325,7 @@ export default function Dashboard({ brand }) {
             <div className="space-y-1.5">
               {[
                 { metric: 'AI Inclusion Rate', value: latest?.inclusion_rate },
-                { metric: 'Brand Mention Rate', value: latest?.total_mentions },
+                { metric: 'Brand Mention Rate', value: latest?.total_mentions, raw: true },
                 { metric: 'Platform Visibility', value: latest?.inclusion_rate },
                 { metric: 'AI Accuracy Score', value: latest?.accuracy_score },
                 { metric: 'Brand Trust Score', value: latest?.brand_trust_score },
@@ -358,7 +358,9 @@ export default function Dashboard({ brand }) {
                       style={{ color: '#7C3AED', fontFamily: 'Outfit, sans-serif' }}
                     >
                       {m.value !== null && m.value !== undefined
-                        ? `${Number(m.value).toFixed(1)}%`
+                        ? m.raw
+                          ? Number(m.value).toLocaleString()
+                          : `${Number(m.value).toFixed(1)}%`
                         : '—'}
                     </span>
                   </div>
@@ -468,7 +470,7 @@ export default function Dashboard({ brand }) {
         >
           Global AI Query Tracking
         </h3>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
           <Globe size={360} />
         </div>
       </div>

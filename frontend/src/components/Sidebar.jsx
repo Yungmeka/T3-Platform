@@ -63,7 +63,7 @@ export default function Sidebar({ brands, selectedBrand, onSelectBrand, activeTa
   const initials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
-    <aside className="w-[260px] min-h-screen flex flex-col bg-white" style={{ boxShadow: '4px 0 20px rgba(0,0,0,0.03)' }}>
+    <aside className="w-[260px] min-h-screen flex flex-col bg-white flex-shrink-0" style={{ boxShadow: '4px 0 20px rgba(0,0,0,0.03)' }}>
       {/* Logo */}
       <div className="px-5 pt-6 pb-4 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-sm text-white"

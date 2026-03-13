@@ -8,6 +8,7 @@ captures each response, and determines inclusion per platform.
 """
 
 import os
+import re
 import asyncio
 import httpx
 
@@ -74,7 +75,6 @@ def check_brand_inclusion(response_text: str, brand_name: str, brand_aliases: li
             end = min(len(response_text), idx + len(name) + 100)
             context = response_text[start:end].strip()
 
-            import re
             before_text = response_text[max(0, idx - 30):idx]
             rank_match = re.search(r'(\d+)[\.\)\:]', before_text)
             if rank_match:
@@ -95,7 +95,6 @@ def check_brand_inclusion(response_text: str, brand_name: str, brand_aliases: li
 
 def _extract_other_brands(response_text: str, our_brand: str) -> list[str]:
     """Extract other brand names mentioned in an AI response."""
-    import re
     bold_pattern = r'\*\*([A-Z][A-Za-z0-9 &\'-]+)\*\*'
     matches = re.findall(bold_pattern, response_text)
     competitors = [m.strip() for m in matches if m.strip().lower() != our_brand.lower()]
@@ -104,27 +103,32 @@ def _extract_other_brands(response_text: str, our_brand: str) -> list[str]:
 
 async def _query_openai(query_text: str) -> str:
     """Query OpenAI ChatGPT API."""
+    platform = "chatgpt"
     async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "gpt-4o-mini",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are a helpful shopping assistant. Provide product recommendations with specific details about features, pricing, and availability.",
-                    },
-                    {"role": "user", "content": query_text},
-                ],
-                "max_tokens": 1000,
-            },
-        )
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+        try:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "gpt-4o-mini",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a helpful shopping assistant. Provide product recommendations with specific details about features, pricing, and availability.",
+                        },
+                        {"role": "user", "content": query_text},
+                    ],
+                    "max_tokens": 1000,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            return f"[Error querying {platform}: {str(e)}]"
 
 
 def _simulate_response(query_text: str, platform: str) -> str:

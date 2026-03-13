@@ -29,7 +29,7 @@ def _verify_claim(claim: dict, products: list[dict], brand_name: str) -> dict:
         return _verify_policy(claim, products)
     else:
         # Default: mark as needing review
-        claim["status"] = "accurate"
+        claim["status"] = "unverified"
         claim["confidence"] = 0.5
         claim["ground_truth_value"] = "Unable to verify automatically"
         return claim
@@ -41,7 +41,7 @@ def _verify_price(claim: dict, products: list[dict]) -> dict:
     price_match = re.search(r'\$?([\d,]+(?:\.\d{2})?)', extracted)
 
     if not price_match:
-        claim["status"] = "accurate"
+        claim["status"] = "unverified"
         claim["confidence"] = 0.5
         return claim
 
@@ -68,7 +68,7 @@ def _verify_price(claim: dict, products: list[dict]) -> dict:
                 claim["confidence"] = 0.9
             return claim
 
-    claim["status"] = "accurate"
+    claim["status"] = "unverified"
     claim["confidence"] = 0.5
     return claim
 
@@ -114,14 +114,14 @@ def _verify_feature(claim: dict, products: list[dict]) -> dict:
                 claim["confidence"] = 0.9
                 return claim
 
-    claim["status"] = "accurate"
+    claim["status"] = "unverified"
     claim["confidence"] = 0.5
     return claim
 
 
 def _verify_availability(claim: dict, products: list[dict]) -> dict:
     """Check availability claims."""
-    claim["status"] = "accurate"
+    claim["status"] = "unverified"
     claim["confidence"] = 0.7
     for product in products:
         if product.get("availability"):
@@ -149,6 +149,6 @@ def _verify_policy(claim: dict, products: list[dict]) -> dict:
                 claim["confidence"] = 0.9
                 return claim
 
-    claim["status"] = "accurate"
+    claim["status"] = "unverified"
     claim["confidence"] = 0.6
     return claim

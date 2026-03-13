@@ -1,5 +1,7 @@
 """Source Intelligence API routes."""
 
+import asyncio
+
 from fastapi import APIRouter, Query
 from app.database import get_supabase
 from app.services.source_intelligence import analyze_sources, aggregate_source_intelligence
@@ -33,10 +35,13 @@ async def get_source_intelligence(brand_id: int, limit: int = Query(default=10))
         .execute()
     )
 
-    analyses = []
-    for resp in (responses.data or []):
-        analysis = await analyze_sources(resp["response_text"], brand_name, resp["platform"])
-        analyses.append(analysis)
+    analyses = await asyncio.gather(
+        *[
+            analyze_sources(resp["response_text"], brand_name, resp["platform"])
+            for resp in (responses.data or [])
+        ]
+    )
+    analyses = list(analyses)
 
     aggregated = aggregate_source_intelligence(analyses) if analyses else {}
 

@@ -6,7 +6,7 @@ const INPUT_CLASS =
   'placeholder:text-slate-400 outline-none transition-all duration-200 ' +
   'focus:border-violet-400 focus:ring-1 focus:ring-violet-400';
 
-export default function AuthPage({ onAuthSuccess, onBack }) {
+export default function AuthPage({ onBack }) {
   const [mode, setMode]       = useState('signin'); // 'signin' | 'register'
   const [name, setName]       = useState('');
   const [companyName, setCompanyName] = useState('');

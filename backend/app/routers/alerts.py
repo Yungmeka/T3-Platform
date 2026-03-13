@@ -52,12 +52,12 @@ def get_alert_stats(brand_id: int = Query(default=None)):
 
     return {
         "total": len(alerts),
-        "unresolved": len([a for a in alerts if not a["resolved"]]),
-        "critical": len([a for a in alerts if a["severity"] == "critical"]),
+        "unresolved": len([a for a in alerts if not a.get("resolved", False)]),
+        "critical": len([a for a in alerts if a.get("severity", "unknown") == "critical"]),
         "by_type": {
-            "hallucination": len([a for a in alerts if a["alert_type"] == "hallucination"]),
-            "anomaly": len([a for a in alerts if a["alert_type"] == "anomaly"]),
-            "data_validation": len([a for a in alerts if a["alert_type"] == "data_validation"]),
-            "visibility_drop": len([a for a in alerts if a["alert_type"] == "visibility_drop"]),
+            "hallucination": len([a for a in alerts if a.get("alert_type", "unknown") == "hallucination"]),
+            "anomaly": len([a for a in alerts if a.get("alert_type", "unknown") == "anomaly"]),
+            "data_validation": len([a for a in alerts if a.get("alert_type", "unknown") == "data_validation"]),
+            "visibility_drop": len([a for a in alerts if a.get("alert_type", "unknown") == "visibility_drop"]),
         },
     }

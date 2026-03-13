@@ -18,6 +18,25 @@ const statCards = [
 export default function Claims({ brand }) {
   const [claims, setClaims] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [stats, setStats] = useState({ total: 0, accurate: 0, hallucinated: 0, outdated: 0 });
+
+  useEffect(() => {
+    async function fetchStats() {
+      const { data } = await supabase
+        .from('claims')
+        .select('status')
+        .eq('brand_id', brand.id);
+      if (data) {
+        setStats({
+          total: data.length,
+          accurate: data.filter((c) => c.status === 'accurate').length,
+          hallucinated: data.filter((c) => c.status === 'hallucinated').length,
+          outdated: data.filter((c) => c.status === 'outdated').length,
+        });
+      }
+    }
+    fetchStats();
+  }, [brand.id]);
 
   useEffect(() => {
     async function fetchClaims() {
@@ -36,13 +55,6 @@ export default function Claims({ brand }) {
     }
     fetchClaims();
   }, [brand.id, filter]);
-
-  const stats = {
-    total: claims.length,
-    accurate: claims.filter((c) => c.status === 'accurate').length,
-    hallucinated: claims.filter((c) => c.status === 'hallucinated').length,
-    outdated: claims.filter((c) => c.status === 'outdated').length,
-  };
 
   return (
     <div>

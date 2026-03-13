@@ -1,8 +1,15 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import queries, analytics, alerts, sources, content, audience, ethics, improvement, factcheck, scan, monitoring, hde
+from starlette.middleware.base import BaseHTTPMiddleware
+from app.routers import queries, analytics, alerts, sources, content, audience, ethics, improvement, factcheck, scan, monitoring, hde, keys, webhooks
 from app.services.scheduler import start_scheduler, stop_scheduler
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -12,20 +19,43 @@ async def lifespan(app: FastAPI):
     yield
     stop_scheduler()
 
+
+docs_url = "/docs" if os.environ.get("ENV") != "production" else None
 app = FastAPI(
-    title="T3 - Track. Trust. Transform.",
-    description="AI Brand Visibility & Trust Platform — Lane College HBCU BOTB 2026",
-    version="1.0.0",
+    title="T3 Sentinel API",
+    docs_url=docs_url,
+    redoc_url=None,
+    openapi_url="/openapi.json" if os.environ.get("ENV") != "production" else None,
     lifespan=lifespan,
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://t3tx.com",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Core monitoring
 app.include_router(queries.router, prefix="/api/queries", tags=["Pillar 1: TRACK — Queries & Claims"])
@@ -59,32 +89,16 @@ app.include_router(monitoring.router, prefix="/api/monitoring", tags=["Automated
 # HDE — Hallucination Detection Engine (embeddable API)
 app.include_router(hde.router, prefix="/api/hde", tags=["HDE — Hallucination Detection Engine"])
 
+# API key management
+app.include_router(keys.router, prefix="/api/keys", tags=["API Keys"])
+
+# Webhook notification system
+app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
+
 
 @app.get("/", tags=["System"])
 def root():
-    return {
-        "name": "T3 - Track. Trust. Transform.",
-        "description": "AI Brand Visibility & Trust Platform",
-        "team": "Lane College",
-        "competition": "HBCU Battle of the Brains 2026",
-        "status": "running",
-        "engines": {
-            "query_engine": "Multi-platform AI query system (ChatGPT, Gemini, Perplexity, Copilot)",
-            "parser": "AI response claim extraction (Claude-powered + regex fallback)",
-            "hallucination_detector": "Ground truth comparison engine",
-            "source_intelligence": "AI source identification and tracking",
-            "content_generator": "Optimized content + schema.org generation",
-            "content_validator": "3-step verification process",
-            "audience_targeting": "Query-to-audience segment mapping",
-            "ethics_monitor": "Hallucination tracking, actions, trust measurement",
-            "improvement_tracker": "Before/after impact measurement + ROI",
-            "consumer_factchecker": "Consumer-facing AI recommendation verification",
-            "anomaly_detector": "Visibility drop and data anomaly detection",
-            "orchestrator": "Full-scan pipeline across all platforms",
-            "automated_scheduler": "APScheduler-powered daily/hourly automated monitoring",
-            "hde": "Embeddable Hallucination Detection Engine — real-time fact-guard API",
-        },
-    }
+    return {"status": "ok", "service": "T3 Sentinel API"}
 
 
 @app.get("/api/brands", tags=["Brands"])

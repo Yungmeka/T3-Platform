@@ -187,13 +187,14 @@ export default function Dashboard({ brand }) {
       const curr = snapshots[i];
       const prev = snapshots[i - 1];
       if (!prev) break;
-      const incDelta = ((curr.inclusion_rate || 0) - (prev.inclusion_rate || 0)).toFixed(1);
-      const direction = incDelta >= 0 ? 'up' : 'down';
+      const incDeltaNum = (curr.inclusion_rate || 0) - (prev.inclusion_rate || 0);
+      const incDelta = incDeltaNum.toFixed(1);
+      const direction = incDeltaNum >= 0 ? 'up' : 'down';
       const dateStr = new Date(curr.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       updates.push({
         date: dateStr,
         action: `AI inclusion rate ${direction === 'up' ? 'increased' : 'decreased'} to ${(curr.inclusion_rate || 0).toFixed(1)}%`,
-        impact: `${incDelta > 0 ? '+' : ''}${incDelta}%`,
+        impact: `${incDeltaNum > 0 ? '+' : ''}${incDelta}%`,
         direction,
         metric: `Trust score: ${(curr.brand_trust_score || 0).toFixed(1)}% | Accuracy: ${(curr.accuracy_score || 0).toFixed(1)}%`,
       });

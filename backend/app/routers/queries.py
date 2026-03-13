@@ -9,8 +9,8 @@ Key endpoints:
 - GET /claims — View all extracted claims
 """
 
-from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 from app.database import get_supabase
 from app.services.query_engine import run_query_against_ai, run_query_all_platforms, check_brand_inclusion
 from app.services.parser import parse_ai_response
@@ -21,13 +21,13 @@ router = APIRouter()
 
 
 class RunQueryRequest(BaseModel):
-    query_text: str
+    query_text: str = Field(..., min_length=1, max_length=500)
     platform: str = "chatgpt"
     brand_id: int
 
 
 class VisibilityScanRequest(BaseModel):
-    query_text: str
+    query_text: str = Field(..., min_length=1, max_length=500)
     brand_id: int
 
 
@@ -189,7 +189,7 @@ async def visibility_scan(request: VisibilityScanRequest):
     # Get brand info
     brand = sb.table("brands").select("*").eq("id", request.brand_id).execute()
     if not brand.data:
-        return {"error": "Brand not found"}
+        raise HTTPException(status_code=404, detail="Brand not found")
     brand_name = brand.data[0]["name"]
 
     # Get products for ground truth
@@ -265,13 +265,14 @@ async def visibility_scan(request: VisibilityScanRequest):
     top_competitors = sorted(competitor_freq.items(), key=lambda x: x[1], reverse=True)
 
     # Calculate visibility score
-    inclusion_rate = round((platforms_mentioned / 4) * 100, 1)
+    platform_count = len(all_responses) or 1
+    inclusion_rate = round((platforms_mentioned / platform_count) * 100, 1)
 
     return {
         "query": request.query_text,
         "brand": brand_name,
         "visibility_summary": {
-            "platforms_checked": 4,
+            "platforms_checked": platform_count,
             "platforms_mentioned": platforms_mentioned,
             "inclusion_rate": inclusion_rate,
             "total_claims_extracted": sum(p.get("claim_summary", {}).get("total", 0) for p in platform_results if not p.get("error")),

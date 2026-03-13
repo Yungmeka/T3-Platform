@@ -340,16 +340,16 @@
 .floating-path {
   fill: none;
   stroke-linecap: round;
-  stroke-dasharray: 0.6 0.4;
-  stroke-dashoffset: 0;
-  animation: fp-travel var(--path-duration, 25s) linear infinite;
-  animation-delay: var(--path-delay, 0s);
-  will-change: stroke-dashoffset, opacity;
-  transform: translateZ(0);
 }
 
-@keyframes fp-travel {
-  0%   { stroke-dashoffset: 0;  opacity: 0.4; }
-  50%  { opacity: 1; }
-  100% { stroke-dashoffset: -2; opacity: 0.4; }
+.fp-container {
+  animation: fp-drift 60s ease-in-out infinite alternate;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+@keyframes fp-drift {
+  0%   { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(2deg) scale(1.02); }
+  100% { transform: rotate(-2deg) scale(1); }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const sections = [
   {
@@ -59,6 +59,15 @@ function NavIcon({ paths }) {
 export default function Sidebar({ brands, selectedBrand, onSelectBrand, activeTab, onSelectTab, onBackToBrands, onSignOut, session }) {
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (!e.target.closest('.brand-dropdown')) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
   const userName = session?.user?.user_metadata?.full_name || session?.user?.email || 'User';
   const initials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
@@ -80,7 +89,7 @@ export default function Sidebar({ brands, selectedBrand, onSelectBrand, activeTa
 
       {/* Brand Selector */}
       <div className="px-4 mb-4">
-        <div className="relative">
+        <div className="relative brand-dropdown">
           <button onClick={() => setOpen(!open)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm border border-slate-200 bg-slate-50 hover:border-violet-300 hover:bg-white transition-all"
             style={{ fontFamily: 'DM Sans' }}>

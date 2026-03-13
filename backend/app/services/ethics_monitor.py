@@ -9,7 +9,7 @@ The case prompt requires answering:
 This engine implements all three.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.database import get_supabase
 
 
@@ -51,7 +51,7 @@ def generate_ethics_report(brand_id: int) -> dict:
 
     return {
         "brand_id": brand_id,
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "ethics_score": ethics_score,
         "monitoring": monitoring_summary,
         "actions": actions_taken,

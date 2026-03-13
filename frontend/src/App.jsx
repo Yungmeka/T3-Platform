@@ -56,18 +56,17 @@ function App() {
   }, []);
 
   // Fetch brands belonging to this user
-  async function fetchBrands() {
-    if (!session) return;
-    const { data } = await supabase
-      .from('brands')
-      .select('*')
-      .eq('user_id', session.user.id);
-    if (data) {
-      setBrands(data);
-    }
-  }
-
   useEffect(() => {
+    async function fetchBrands() {
+      if (!session) return;
+      const { data } = await supabase
+        .from('brands')
+        .select('*')
+        .eq('user_id', session.user.id);
+      if (data) {
+        setBrands(data);
+      }
+    }
     fetchBrands();
   }, [session]);
 

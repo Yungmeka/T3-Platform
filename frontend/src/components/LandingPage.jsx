@@ -268,18 +268,17 @@ function Navbar({ onGetStarted }) {
 function FloatingPaths({ position }) {
   const pathsRef = useRef(null);
   if (!pathsRef.current) {
-    pathsRef.current = Array.from({ length: 8 }, (_, i) => ({
+    pathsRef.current = Array.from({ length: 36 }, (_, i) => ({
       id: i,
-      d: `M-${380 - i * 8 * position} -${189 + i * 10}C-${
-        380 - i * 8 * position
-      } -${189 + i * 10} -${312 - i * 8 * position} ${216 - i * 10} ${
-        152 - i * 8 * position
-      } ${343 - i * 10}C${616 - i * 8 * position} ${470 - i * 10} ${
-        684 - i * 8 * position
-      } ${875 - i * 10} ${684 - i * 8 * position} ${875 - i * 10}`,
-      width: 0.15 + i * 0.01,
-      duration: 20 + Math.random() * 10,
-      delay: -(Math.random() * 20),
+      d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${
+        380 - i * 5 * position
+      } -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${
+        152 - i * 5 * position
+      } ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${
+        684 - i * 5 * position
+      } ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
+      width: 0.5 + i * 0.03,
+      opacity: 0.1 + i * 0.03,
     }));
   }
   const paths = pathsRef.current;
@@ -291,13 +290,14 @@ function FloatingPaths({ position }) {
         position: 'absolute',
         inset: 0,
         pointerEvents: 'none',
-        opacity: 0.12,
+        opacity: 0.5,
         overflow: 'hidden',
         willChange: 'transform',
         transform: 'translateZ(0)',
       }}
     >
       <svg
+        className="fp-container"
         style={{ width: '100%', height: '100%' }}
         viewBox="0 0 696 316"
         fill="none"
@@ -310,13 +310,9 @@ function FloatingPaths({ position }) {
             d={path.d}
             stroke={`url(#${gradId})`}
             strokeWidth={path.width}
+            strokeOpacity={path.opacity}
             vectorEffect="non-scaling-stroke"
-            pathLength="1"
             className="floating-path"
-            style={{
-              '--path-duration': `${path.duration}s`,
-              '--path-delay': `${path.delay}s`,
-            }}
           />
         ))}
         <defs>

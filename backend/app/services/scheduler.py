@@ -27,6 +27,9 @@ scheduler = AsyncIOScheduler()
 scan_history = []
 MAX_HISTORY = 100
 
+# Module-level counter to avoid scan ID collisions when history is trimmed
+_scan_counter = 0
+
 # Schedule configuration (can be updated via API)
 schedule_config = {
     "daily_scan_enabled": True,
@@ -42,9 +45,13 @@ async def _run_scheduled_scan(scan_type: str = "daily"):
     from app.database import get_supabase
     from app.services.orchestrator import run_full_scan
 
+    global _scan_counter
+    _scan_counter += 1
+    scan_id = _scan_counter
+
     start_time = datetime.now(timezone.utc)
     scan_record = {
-        "id": len(scan_history) + 1,
+        "id": scan_id,
         "type": scan_type,
         "started_at": start_time.isoformat(),
         "status": "running",
@@ -181,10 +188,37 @@ def update_schedule(config_updates: dict):
     """Update schedule configuration and restart jobs."""
     schedule_config.update(config_updates)
 
-    # Restart scheduler with new config
     if scheduler.running:
-        scheduler.shutdown(wait=False)
+        # Remove all existing jobs and re-add with updated config without
+        # stopping the scheduler (shutdown + start causes restart issues).
+        scheduler.remove_all_jobs()
 
-    # Re-initialize with updated config
-    start_scheduler()
+        if schedule_config["daily_scan_enabled"]:
+            scheduler.add_job(
+                _run_scheduled_scan,
+                trigger=CronTrigger(
+                    hour=schedule_config["daily_scan_hour"],
+                    minute=schedule_config["daily_scan_minute"],
+                ),
+                id="daily_full_scan",
+                name="Daily Full Brand Scan",
+                kwargs={"scan_type": "daily"},
+                replace_existing=True,
+            )
+
+        if schedule_config["hourly_check_enabled"]:
+            scheduler.add_job(
+                _run_scheduled_scan,
+                trigger=IntervalTrigger(minutes=schedule_config["interval_minutes"]),
+                id="hourly_quick_check",
+                name="Hourly Brand Monitoring",
+                kwargs={"scan_type": "hourly"},
+                replace_existing=True,
+            )
+
+        logger.info("[T3 Scheduler] Schedule updated with new config")
+    else:
+        # Scheduler not running yet — start it fresh
+        start_scheduler()
+
     return schedule_config

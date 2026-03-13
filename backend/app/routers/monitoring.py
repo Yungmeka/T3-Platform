@@ -58,7 +58,7 @@ async def trigger_scan(scan_type: str = Query(default="manual")):
 @router.put("/config")
 def update_monitoring_config(config: ScheduleConfig):
     """Update automated monitoring schedule (frequency, time, enable/disable)."""
-    updates = {k: v for k, v in config.dict().items() if v is not None}
+    updates = {k: v for k, v in config.model_dump().items() if v is not None}
     if not updates:
         return {"error": "No config changes provided"}
     new_config = update_schedule(updates)

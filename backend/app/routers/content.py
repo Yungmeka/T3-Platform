@@ -1,6 +1,6 @@
 """Content Generation & Validation API routes."""
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from app.database import get_supabase
 from app.services.content_generator import generate_optimized_content, validate_content, generate_action_content
@@ -39,9 +39,15 @@ async def generate_content(product_id: int):
     }
 
 
+VALID_CONTENT_TYPES = {"schema", "press_release", "reddit", "pitch_email", "faq"}
+
+
 @router.post("/action/{product_id}/{content_type}")
 async def generate_action(product_id: int, content_type: str):
     """Generate ready-to-publish content. Types: schema, press_release, reddit, pitch_email, faq"""
+    if content_type not in VALID_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid content_type")
+
     sb = get_supabase()
     product = sb.table("products").select("*, brands(name)").eq("id", product_id).execute()
     if not product.data:

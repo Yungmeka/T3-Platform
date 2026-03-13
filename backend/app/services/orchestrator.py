@@ -146,7 +146,8 @@ async def _update_daily_snapshot(brand_id: int, scan_results: dict):
     total_mentions = len([d for d in scan_results["details"] if d.get("brand_mentioned")])
     total_claims = scan_results["claims_extracted"]
     hallucinated = scan_results["hallucinations_found"]
-    accurate = total_claims - hallucinated
+    details = scan_results["details"]
+    accurate = len([d for d in details if d.get("status") == "accurate"])
 
     inclusion_rate = round((total_mentions / total_queries * 100), 1) if total_queries > 0 else 0
     accuracy_score = round((accurate / total_claims * 100), 1) if total_claims > 0 else 0

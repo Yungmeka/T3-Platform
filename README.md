@@ -301,6 +301,306 @@ Without API keys, the system uses simulated responses with pre-built hallucinati
 
 ---
 
+## Sentinel Integration — Plug Into Any AI System
+
+T3 Sentinel is an embeddable Hallucination Detection Engine (HDE) that companies integrate directly into their own AI systems. It sits between the AI and the customer, catching and correcting hallucinations in real time.
+
+### How It Works
+
+```
+  Company's Internal AI System                        T3 Sentinel
+  ──────────────────────────                        ──────────────
+
+  ┌──────────────┐     ┌──────────────────┐     ┌────────────────────┐
+  │   Customer   │     │   Company's LLM  │     │     HDE API        │
+  │   asks a     │────▶│   (ChatGPT,      │────▶│   /api/hde/check   │
+  │   question   │     │    Claude, etc.)  │     │                    │
+  └──────────────┘     └──────────────────┘     │  ┌──────────────┐  │
+                              │                  │  │ Extract      │  │
+                              │                  │  │ Claims       │  │
+                              │                  │  └──────┬───────┘  │
+                              │                  │         │          │
+                              │                  │  ┌──────▼───────┐  │
+                              │                  │  │ Compare vs   │  │
+                              │                  │  │ Ground Truth │  │
+                              │                  │  └──────┬───────┘  │
+                              │                  │         │          │
+                              │                  │  ┌──────▼───────┐  │
+                              │                  │  │ Correct or   │  │
+                              │                  │  │ Flag Claims  │  │
+                              │                  │  └──────────────┘  │
+                              │                  └─────────┬──────────┘
+                              │                            │
+                              ▼                            ▼
+                       ┌──────────────┐           ┌────────────────┐
+                       │  WITHOUT     │           │  WITH          │
+                       │  Sentinel:   │           │  Sentinel:     │
+                       │              │           │                │
+                       │  "This TV    │           │  "This TV      │
+                       │  is $399"    │           │  is $449.99"   │
+                       │  (WRONG)     │           │  (CORRECTED)   │
+                       └──────────────┘           └────────────────┘
+```
+
+### Three Modes
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `block` | Auto-corrects hallucinations with ground truth | Customer-facing chatbots |
+| `flag` | Returns original text + flagged claims | Human review workflows |
+| `log` | Silently records for analytics | Monitoring & compliance |
+
+### Integration Architecture
+
+```
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                     COMPANY'S AI INFRASTRUCTURE                    │
+  │                                                                    │
+  │  ┌─────────┐    ┌──────────┐    ┌──────────────┐    ┌──────────┐  │
+  │  │ Customer │───▶│ AI App   │───▶│ T3 Sentinel  │───▶│ Verified │  │
+  │  │ Query    │    │ (LLM)   │    │ SDK          │    │ Response │  │
+  │  └─────────┘    └──────────┘    └──────┬───────┘    └──────────┘  │
+  │                                        │                           │
+  └────────────────────────────────────────┼───────────────────────────┘
+                                           │
+                              ┌────────────▼────────────┐
+                              │     T3 Sentinel API     │
+                              │                         │
+                              │  ┌───────────────────┐  │
+                              │  │ API Key Auth      │  │
+                              │  │ (t3_live_xxx)     │  │
+                              │  └─────────┬─────────┘  │
+                              │            │            │
+                              │  ┌─────────▼─────────┐  │
+                              │  │ HDE Engine        │  │
+                              │  │ Claims Extraction │  │
+                              │  │ Ground Truth DB   │  │
+                              │  │ Correction Engine │  │
+                              │  └─────────┬─────────┘  │
+                              │            │            │
+                              │  ┌─────────▼─────────┐  │
+                              │  │ Webhooks          │  │
+                              │  │ (notify on        │  │
+                              │  │  hallucination)   │  │
+                              │  └───────────────────┘  │
+                              └─────────────────────────┘
+```
+
+### Quick Start — 3 Lines of Code
+
+**Python:**
+```python
+pip install t3-sentinel
+```
+
+```python
+from t3_sentinel import T3Sentinel
+from openai import OpenAI
+
+# Initialize
+sentinel = T3Sentinel(api_key="t3_live_your_key_here")
+
+# Wrap your existing OpenAI client — all responses are now auto-checked
+openai = sentinel.wrap_openai(OpenAI(), brand_id=4)
+
+# Your existing code works unchanged — hallucinations are caught automatically
+response = openai.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Tell me about this product"}]
+)
+# response.choices[0].message.content is now verified and corrected
+```
+
+**JavaScript:**
+```bash
+npm install @t3sentinel/sdk
+```
+
+```javascript
+const { T3Sentinel } = require("@t3sentinel/sdk");
+const OpenAI = require("openai");
+
+// Initialize
+const sentinel = new T3Sentinel({ apiKey: "t3_live_your_key_here" });
+
+// Wrap your existing OpenAI client
+const openai = sentinel.wrapOpenAI(new OpenAI(), 4);
+
+// Your existing code works unchanged
+const response = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "Tell me about this product" }]
+});
+// response.choices[0].message.content is verified and corrected
+```
+
+### Direct API Usage
+
+For custom integrations without the SDK:
+
+```bash
+curl -X POST https://api.t3tx.com/api/hde/check \
+  -H "X-API-Key: t3_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "The Samsung Galaxy S24 Ultra starts at $999 with 12GB RAM",
+    "mode": "block"
+  }'
+```
+
+**Response:**
+```json
+{
+  "safe": false,
+  "original_text": "The Samsung Galaxy S24 Ultra starts at $999 with 12GB RAM",
+  "corrected_text": "The Samsung Galaxy S24 Ultra starts at $1,299.99 with 12GB RAM",
+  "claims_checked": 2,
+  "hallucinations_found": 1,
+  "claims": [
+    {
+      "claim": "$999",
+      "type": "pricing",
+      "status": "hallucinated",
+      "ground_truth": "$1,299.99",
+      "confidence": 0.95
+    }
+  ],
+  "mode": "block",
+  "action_taken": "response_corrected"
+}
+```
+
+### Supported AI Frameworks
+
+| Framework | Integration Method |
+|-----------|-------------------|
+| **OpenAI** (GPT-4, GPT-4o) | `sentinel.wrap_openai(client)` |
+| **Anthropic** (Claude) | `sentinel.wrap_anthropic(client)` |
+| **LangChain** | Callback handler |
+| **Vercel AI SDK** | `sentinel.vercelAI()` transform |
+| **Express / Fastify** | `sentinel.middleware()` |
+| **Custom LLM** | Direct `sentinel.check(text)` call |
+
+### Webhook Notifications
+
+Register webhooks to get notified when hallucinations are detected:
+
+```bash
+# Register a webhook
+curl -X POST https://api.t3tx.com/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-company.com/webhook",
+    "events": ["hallucination.detected"],
+    "brand_id": 4,
+    "secret": "your_signing_secret"
+  }'
+```
+
+When a hallucination is caught, T3 sends:
+
+```json
+{
+  "event": "hallucination.detected",
+  "timestamp": "2026-03-13T12:00:00Z",
+  "data": {
+    "claims_checked": 3,
+    "hallucinations_found": 1,
+    "hallucinated_claims": [
+      {
+        "claim": "$999",
+        "type": "pricing",
+        "status": "hallucinated",
+        "ground_truth": "$1,299.99"
+      }
+    ],
+    "mode": "block",
+    "action_taken": "response_corrected"
+  }
+}
+```
+
+Payloads are signed with HMAC-SHA256 using your webhook secret. Deliveries retry up to 3 times with exponential backoff.
+
+### API Key Management
+
+```bash
+# Generate an API key
+POST /api/keys
+{ "name": "Production Chatbot", "brand_id": 4 }
+# Returns: { "key": "t3_live_abc123..." } (shown only once)
+
+# List keys (prefix only)
+GET /api/keys?user_id=xxx
+# Returns: [{ "prefix": "t3_live_abc1", "name": "Production Chatbot", "usage_count": 142 }]
+
+# Revoke a key
+DELETE /api/keys/{key_id}
+```
+
+Keys are SHA-256 hashed — the raw key is never stored. Revocation is instant.
+
+### End-to-End Data Flow
+
+```
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                    COMPLETE SENTINEL PIPELINE                    │
+  │                                                                  │
+  │  Company's AI ──▶ SDK ──▶ HDE API ──▶ Claim Extraction          │
+  │                                            │                     │
+  │                                     ┌──────▼──────┐              │
+  │                                     │ Ground Truth│              │
+  │                                     │ Product DB  │              │
+  │                                     │ (Supabase)  │              │
+  │                                     └──────┬──────┘              │
+  │                                            │                     │
+  │                           ┌────────────────┼────────────────┐    │
+  │                           ▼                ▼                ▼    │
+  │                     ┌──────────┐    ┌───────────┐    ┌────────┐  │
+  │                     │ Accurate │    │Hallucin-  │    │Outdated│  │
+  │                     │ (pass)   │    │ated (fix) │    │ (flag) │  │
+  │                     └──────────┘    └─────┬─────┘    └────────┘  │
+  │                                          │                       │
+  │                              ┌───────────┼───────────┐           │
+  │                              ▼           ▼           ▼           │
+  │                        ┌──────────┐ ┌─────────┐ ┌─────────┐     │
+  │                        │ Corrected│ │ Webhook │ │Dashboard│     │
+  │                        │ Response │ │ Fired   │ │ Updated │     │
+  │                        └──────────┘ └─────────┘ └─────────┘     │
+  │                              │                                   │
+  │                              ▼                                   │
+  │                     Customer sees                                │
+  │                     verified answer                              │
+  └──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Integration API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/hde/check` | Check AI text for hallucinations (block/flag/log) |
+| `GET /api/hde/status` | HDE API health and usage stats |
+| `POST /api/keys` | Generate a new API key |
+| `GET /api/keys` | List API keys (prefix only) |
+| `DELETE /api/keys/{id}` | Revoke an API key |
+| `POST /api/webhooks` | Register a webhook URL |
+| `GET /api/webhooks` | List registered webhooks |
+| `DELETE /api/webhooks/{id}` | Deactivate a webhook |
+| `POST /api/webhooks/{id}/test` | Send a test webhook payload |
+
+---
+
+## SDKs
+
+| Language | Package | Install |
+|----------|---------|---------|
+| Python | `t3-sentinel` | `pip install t3-sentinel` |
+| JavaScript | `@t3sentinel/sdk` | `npm install @t3sentinel/sdk` |
+
+---
+
 ## Project Structure
 
 ```
@@ -308,7 +608,9 @@ T3/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py                          # FastAPI application
-│   │   ├── database.py                      # Supabase connection
+│   │   ├── database.py                      # Supabase connection (singleton)
+│   │   ├── middleware/
+│   │   │   └── auth.py                      # API key authentication
 │   │   ├── routers/
 │   │   │   ├── analytics.py                 # Analytics endpoints
 │   │   │   ├── alerts.py                    # Alerts endpoints
@@ -319,7 +621,10 @@ T3/
 │   │   │   ├── ethics.py                    # Ethics monitoring endpoints
 │   │   │   ├── improvement.py               # Improvement tracking endpoints
 │   │   │   ├── factcheck.py                 # Consumer fact-check endpoints
-│   │   │   └── scan.py                      # Scan orchestrator endpoints
+│   │   │   ├── scan.py                      # Scan orchestrator endpoints
+│   │   │   ├── hde.py                       # Hallucination Detection Engine API
+│   │   │   ├── keys.py                      # API key management
+│   │   │   └── webhooks.py                  # Webhook registration & management
 │   │   └── services/
 │   │       ├── query_engine.py              # AI platform querying
 │   │       ├── parser.py                    # Response claim extraction
@@ -331,8 +636,31 @@ T3/
 │   │       ├── ethics_monitor.py            # Bias & fairness detection
 │   │       ├── improvement_tracker.py       # Score tracking over time
 │   │       ├── consumer_factcheck.py        # Claim verification
-│   │       └── orchestrator.py              # Multi-engine scan pipeline
+│   │       ├── orchestrator.py              # Multi-engine scan pipeline
+│   │       └── webhook_dispatcher.py        # Webhook delivery with retry
+│   ├── migrations/
+│   │   ├── 001_api_keys.sql                 # API keys table + RLS
+│   │   └── 002_webhooks.sql                 # Webhooks table + RLS
 │   └── requirements.txt
+├── sdks/
+│   ├── python/                              # Python SDK (pip install t3-sentinel)
+│   │   ├── t3_sentinel/
+│   │   │   ├── __init__.py
+│   │   │   ├── client.py                    # T3Sentinel client class
+│   │   │   ├── wrappers.py                  # OpenAI & Anthropic wrappers
+│   │   │   └── exceptions.py               # T3Error, HallucinationDetected
+│   │   ├── pyproject.toml
+│   │   └── README.md
+│   └── javascript/                          # JS SDK (npm install @t3sentinel/sdk)
+│       ├── src/
+│       │   ├── index.js
+│       │   ├── client.js                    # T3Sentinel client class
+│       │   ├── exceptions.js                # T3Error, HallucinationDetected
+│       │   └── index.d.ts                   # TypeScript declarations
+│       ├── package.json
+│       └── README.md
+├── docs/
+│   └── integration-architecture.md          # Full integration design spec
 ├── frontend/
 │   └── src/
 │       ├── App.jsx                          # Main app with routing

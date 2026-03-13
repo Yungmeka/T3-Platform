@@ -9,21 +9,22 @@ Validates all content against ground truth before recommending.
 """
 
 import os
+import re
 import json
 import httpx
-
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 
 async def generate_optimized_content(product: dict, brand_name: str, content_gaps: list[dict] = None) -> dict:
     """Generate AI-optimized content for a product based on gaps found."""
+    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
-    if ANTHROPIC_API_KEY:
+    if anthropic_api_key:
         return await _generate_with_claude(product, brand_name, content_gaps)
     return _generate_basic(product, brand_name, content_gaps)
 
 
 async def _generate_with_claude(product: dict, brand_name: str, content_gaps: list[dict] = None) -> dict:
+    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     gaps_text = ""
     if content_gaps:
         gaps_text = "\n\nContent gaps detected:\n" + "\n".join(
@@ -66,21 +67,26 @@ Return JSON:
 Return ONLY valid JSON."""
 
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 2000,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-        )
-        data = resp.json()
-        text = data["content"][0]["text"]
+        try:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": anthropic_api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-haiku-4-5-20251001",
+                    "max_tokens": 2000,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            text = data["content"][0]["text"]
+        except Exception:
+            return _generate_basic(product, brand_name, content_gaps)
+
         try:
             if "```" in text:
                 text = text.split("```")[1]
@@ -394,13 +400,14 @@ def validate_content(generated_content: dict, product: dict) -> dict:
         except json.JSONDecodeError:
             features = []
 
+    features_lower = [f.lower() for f in features]
+
     # Step 2: Cross-check description against ground truth
     description = generated_content.get("optimized_description", "")
     actual_price = product.get("price", 0)
 
     if actual_price and f"${actual_price}" not in description and str(actual_price) not in description:
         # Check if any price is mentioned that doesn't match
-        import re
         mentioned_prices = re.findall(r'\$(\d+(?:\.\d{2})?)', description)
         for mp in mentioned_prices:
             if abs(float(mp) - float(actual_price)) > 1:
@@ -421,13 +428,24 @@ def validate_content(generated_content: dict, product: dict) -> dict:
                 "severity": "critical",
             })
 
-    # Validate FAQs
+    # Validate FAQs — flag any feature mentioned in an answer that is not in
+    # the verified ground-truth feature list for this product.
     for i, faq in enumerate(generated_content.get("faq_content", [])):
         answer = faq.get("answer", "").lower()
-        # Check for feature claims not in ground truth
-        for feature in features:
-            if feature.lower() in answer:
-                continue  # Feature is valid
+        # Extract word-sequences that look like feature claims (simple heuristic:
+        # any noun phrase already present in the answer that does NOT appear in
+        # the known features list indicates a potential hallucination).
+        for token in re.findall(r'[a-z0-9][\w\s\-]{2,}[a-z0-9]', answer):
+            token = token.strip()
+            # Only flag tokens that look like a claimed feature (contain a digit
+            # or a known feature keyword) but cannot be found in ground truth.
+            if any(kw in token for kw in ("gb", "mhz", "ghz", "watt", "inch", "amp", "volt")):
+                if not any(token in f or f in token for f in features_lower):
+                    issues.append({
+                        "field": f"faq_content[{i}]",
+                        "issue": f"FAQ answer references '{token}' which is not in the verified feature list",
+                        "severity": "warning",
+                    })
 
     return {
         "valid": len(issues) == 0,

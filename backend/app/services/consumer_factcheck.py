@@ -13,18 +13,18 @@ import json
 import re
 import httpx
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-
 
 async def factcheck_recommendation(recommendation_text: str) -> dict:
     """Fact-check a consumer's AI shopping recommendation."""
+    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
-    if ANTHROPIC_API_KEY:
+    if anthropic_api_key:
         return await _factcheck_with_claude(recommendation_text)
     return _factcheck_basic(recommendation_text)
 
 
 async def _factcheck_with_claude(recommendation_text: str) -> dict:
+    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     prompt = f"""You are a product fact-checker. Analyze this AI shopping recommendation that a consumer received.
 
 For each factual claim in the recommendation, classify it as:
@@ -55,21 +55,26 @@ Return JSON:
 Return ONLY valid JSON."""
 
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 2000,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-        )
-        data = resp.json()
-        text = data["content"][0]["text"]
+        try:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": anthropic_api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-haiku-4-5-20251001",
+                    "max_tokens": 2000,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            text = data["content"][0]["text"]
+        except Exception:
+            return _factcheck_basic(recommendation_text)
+
         try:
             if "```" in text:
                 text = text.split("```")[1]

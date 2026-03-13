@@ -192,9 +192,11 @@ export default function HomePage({ brands, onSelectBrand, session, onSignOut, on
   // Fetch latest analytics snapshot per brand
   useEffect(() => {
     async function fetchMetrics() {
+      if (!brands || brands.length === 0) return;
       const { data, error } = await supabase
         .from('analytics_snapshots')
         .select('*')
+        .in('brand_id', brands.map(b => b.id))
         .order('date', { ascending: false });
 
       if (error) {
@@ -217,7 +219,7 @@ export default function HomePage({ brands, onSelectBrand, session, onSignOut, on
     }
 
     fetchMetrics();
-  }, []);
+  }, [brands]);
 
   const displayName =
     session?.user?.user_metadata?.full_name || session?.user?.email || 'User';

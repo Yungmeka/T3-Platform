@@ -79,7 +79,7 @@ export default function HDE({ brand }) {
       .then(r => r.json())
       .then(setApiStats)
       .catch(() => {});
-  }, [result]);
+  }, []);
 
   async function runCheck() {
     setLoading(true);
@@ -96,6 +96,10 @@ export default function HDE({ brand }) {
       setResult({ error: 'Backend not running' });
     }
     setLoading(false);
+    fetch(`${BACKEND}/api/hde/status`)
+      .then(r => r.json())
+      .then(setApiStats)
+      .catch(() => {});
   }
 
   function copyCode() {

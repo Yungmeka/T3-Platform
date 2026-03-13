@@ -32,21 +32,25 @@ AI Response:
 Return ONLY valid JSON array, no other text."""
 
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 1000,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-        )
-        data = resp.json()
-        text = data["content"][0]["text"]
+        try:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": ANTHROPIC_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-haiku-4-5-20251001",
+                    "max_tokens": 1000,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            text = data["content"][0]["text"]
+        except Exception:
+            return _parse_basic(response_text, brand_name)
 
         # Extract JSON from response
         try:

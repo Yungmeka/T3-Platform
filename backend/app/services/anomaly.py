@@ -22,7 +22,7 @@ def detect_anomalies(brand_id: int) -> list[dict]:
     previous = snapshots.data[1]
 
     # Check for visibility drop
-    if recent["inclusion_rate"] and previous["inclusion_rate"]:
+    if recent["inclusion_rate"] is not None and previous["inclusion_rate"] is not None:
         drop = previous["inclusion_rate"] - recent["inclusion_rate"]
         if drop > 10:
             anomalies.append({
@@ -33,7 +33,7 @@ def detect_anomalies(brand_id: int) -> list[dict]:
             })
 
     # Check for hallucination spike
-    if recent["hallucination_rate"] and previous["hallucination_rate"]:
+    if recent["hallucination_rate"] is not None and previous["hallucination_rate"] is not None:
         spike = recent["hallucination_rate"] - previous["hallucination_rate"]
         if spike > 5:
             anomalies.append({
@@ -44,7 +44,7 @@ def detect_anomalies(brand_id: int) -> list[dict]:
             })
 
     # Check for accuracy drop
-    if recent["accuracy_score"] and previous["accuracy_score"]:
+    if recent["accuracy_score"] is not None and previous["accuracy_score"] is not None:
         acc_drop = previous["accuracy_score"] - recent["accuracy_score"]
         if acc_drop > 8:
             anomalies.append({

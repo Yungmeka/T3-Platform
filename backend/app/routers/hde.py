@@ -14,13 +14,18 @@ GET  /api/hde/status — API health and stats
 GET  /api/hde/docs — Integration code snippets
 """
 
+import asyncio
 import re
 import json
+import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, Header
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel, Field
 from typing import Optional
 from app.database import get_supabase
+from app.middleware.auth import optional_api_key
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -34,8 +39,15 @@ hde_stats = {
 
 
 class HDECheckRequest(BaseModel):
-    text: str
-    brand_id: int
+    text: str = Field(..., min_length=1, max_length=10000)
+    brand_id: Optional[int] = Field(
+        None,
+        description=(
+            "Brand to check against. Required when calling without an API key. "
+            "When an X-API-Key header is provided the brand is resolved from the "
+            "key record and this field is ignored."
+        ),
+    )
     mode: str = "block"  # block | flag | log
 
 
@@ -59,15 +71,34 @@ class HDECheckResponse(BaseModel):
 
 
 @router.post("/check")
-async def hde_check(req: HDECheckRequest):
+async def hde_check(
+    req: HDECheckRequest,
+    api_key_record: Optional[dict] = Depends(optional_api_key),
+):
     """
     Main HDE endpoint. Send AI-generated text, get it fact-checked
     against ground truth product data in real-time.
+
+    Authentication (two supported modes):
+    - API key via X-API-Key header: brand_id is resolved from the key record.
+      The brand_id field in the request body is not required and is ignored.
+    - No header (internal/dashboard use): brand_id must be present in the body.
     """
+    # Resolve brand_id — key record takes precedence over body
+    if api_key_record is not None:
+        resolved_brand_id = api_key_record["brand_id"]
+    elif req.brand_id is not None:
+        resolved_brand_id = req.brand_id
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail="brand_id is required in the request body when no API key is provided",
+        )
+
     sb = get_supabase()
 
     # Get products for this brand (ground truth)
-    products = sb.table("products").select("*").eq("brand_id", req.brand_id).execute()
+    products = sb.table("products").select("*").eq("brand_id", resolved_brand_id).execute()
     product_data = products.data or []
 
     # Extract and verify claims
@@ -92,6 +123,29 @@ async def hde_check(req: HDECheckRequest):
         action = "silently_logged"
     else:
         action = "passed_clean" if is_safe else "claims_flagged"
+
+    # Dispatch a webhook notification when hallucinations are detected.
+    # Runs as a background task so it never adds latency to the API response.
+    if not is_safe:
+        from app.services.webhook_dispatcher import dispatch_webhook
+        asyncio.create_task(
+            dispatch_webhook(
+                brand_id=resolved_brand_id,
+                event="hallucination.detected",
+                payload={
+                    "claims_checked": len(claims),
+                    "hallucinations_found": len(hallucinations),
+                    "hallucinated_claims": hallucinations,
+                    "mode": req.mode,
+                    "action_taken": action,
+                },
+            )
+        )
+        logger.info(
+            "hde: webhook task queued brand_id=%s hallucinations=%s",
+            resolved_brand_id,
+            len(hallucinations),
+        )
 
     return {
         "safe": is_safe,
@@ -213,7 +267,7 @@ def _extract_and_check_claims(text: str, products: list[dict]) -> list[dict]:
         if isinstance(features, str):
             try:
                 features = json.loads(features)
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError, KeyError):
                 features = {}
 
         if isinstance(features, dict):

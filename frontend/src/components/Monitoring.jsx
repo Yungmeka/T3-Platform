@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
+import { runFullScan } from '../services/sentinel';
 
 const statusColors = {
   completed: 'bg-green-50 text-green-700 border-green-200',
@@ -74,15 +75,39 @@ export default function Monitoring({ brand }) {
     setStatus((prev) => ({ ...prev, running: !prev.running }));
   }
 
-  function triggerScan() {
+  async function triggerScan() {
     setTriggering(true);
-    setTimeout(() => {
+    const startTime = Date.now();
+    try {
+      const result = await runFullScan(brand);
+      const duration = Math.round((Date.now() - startTime) / 1000);
       setHistory((prev) => [
-        { status: 'completed', type: 'manual', started_at: new Date().toISOString(), brands_scanned: 3, total_claims: 15, hallucinations_found: 1, duration_seconds: 22, errors: [] },
+        {
+          status: result.error ? 'failed' : 'completed',
+          type: 'manual',
+          started_at: new Date().toISOString(),
+          brands_scanned: 1,
+          total_claims: result.claims_extracted || 0,
+          hallucinations_found: result.hallucinations_found || 0,
+          duration_seconds: duration,
+          errors: result.error ? [{ brand: brand.name, message: result.error }] : [],
+        },
         ...prev,
       ]);
-      setTriggering(false);
-    }, 1200);
+      // Update stats
+      setStatus(prev => ({
+        ...prev,
+        total_scans_completed: (prev?.total_scans_completed || 0) + (result.error ? 0 : 1),
+        total_scans_failed: (prev?.total_scans_failed || 0) + (result.error ? 1 : 0),
+      }));
+    } catch (err) {
+      const duration = Math.round((Date.now() - startTime) / 1000);
+      setHistory((prev) => [
+        { status: 'failed', type: 'manual', started_at: new Date().toISOString(), brands_scanned: 1, total_claims: 0, hallucinations_found: 0, duration_seconds: duration, errors: [{ brand: brand.name, message: err.message }] },
+        ...prev,
+      ]);
+    }
+    setTriggering(false);
   }
 
   function updateConfig(key, value) {

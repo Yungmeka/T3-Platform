@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { enrichBrandFromWebsite } from '../services/sentinel';
 
 // Generate a consistent color from a brand name
 function getBrandColor(brandName) {
@@ -178,8 +179,16 @@ export default function HomePage({ brands, onSelectBrand, session, onSignOut, on
         insert[key] = val.trim() || null;
       }
       insert.user_id = session.user.id;
-      const { error } = await supabase.from('brands').insert(insert);
+      const { data: newBrand, error } = await supabase.from('brands').insert(insert).select().single();
       if (error) throw error;
+
+      // Auto-discover products from website in background
+      if (newBrand && newBrand.website) {
+        enrichBrandFromWebsite(newBrand).catch(err =>
+          console.log('Auto-product discovery:', err.message)
+        );
+      }
+
       closeModal();
       if (onBrandAdded) onBrandAdded();
     } catch (err) {

@@ -84,3 +84,80 @@ npm run preview # preview production build locally
 
 - **Jayblair2004** — Lead Developer
 - **Yungmeka** — Developer
+
+## Two Products
+
+### T3 Web Hub (Main Platform)
+
+The web dashboard helps brands monitor and improve their AI visibility across ChatGPT, Gemini, Perplexity, and Copilot.
+
+**What it does:**
+- Queries all 4 AI platforms in real-time about your brand
+- Extracts and verifies every claim AI makes (prices, features, availability)
+- Detects hallucinations by comparing AI responses against your product database
+- Generates ready-to-publish content (Schema.org JSON-LD, press releases, Reddit posts, FAQ markup, blogger pitches)
+- Tracks visibility score, inclusion rate, and trust score over time
+- One-click Full AI Pipeline: scan all platforms → extract claims → generate all content types
+
+### T3 Sentinel (Integration API)
+
+An embeddable API that intercepts AI responses, fact-checks them against ground truth, and returns corrected text.
+
+**Demo:** The HDE (Hallucination Detection Engine) page is Sentinel's live playground — paste any AI text and watch it get verified in real-time.
+
+## Features Implemented
+
+- **Real AI Platform Queries** — OpenAI GPT-4o-mini for ChatGPT/Copilot, Anthropic Claude for Gemini/Perplexity
+- **Secure API Keys** — All keys stored in Supabase Vault, accessed via Edge Functions (never exposed in frontend)
+- **Content Generation** — 5 content types powered by Claude AI
+- **Fact Checking** — Real-time claim analysis with trust scoring
+- **Auto Product Discovery** — When adding a brand with a website URL, T3 automatically scrapes and populates products
+- **Full Pipeline** — One-click scan + content generation across all platforms and products
+- **Live Monitoring** — Run real scans on-demand with full results tracking
+- **16 Dashboard Pages** — Complete analytics, monitoring, content creation, and integration tools
+
+## Roadmap
+
+### Completed (v1)
+
+- [x] Multi-platform AI querying (ChatGPT, Gemini, Perplexity, Copilot)
+- [x] Claim extraction and hallucination detection
+- [x] AI-powered content generation (5 formats)
+- [x] Real-time fact checking with trust scores
+- [x] Supabase Edge Functions for secure API routing
+- [x] Auto product discovery from brand websites
+- [x] Full AI Pipeline (one-click end-to-end)
+- [x] On-demand monitoring with real scan results
+
+### Next Up (v2)
+
+- [ ] **Scheduled Scans** — Cron-based automated daily/hourly monitoring via Supabase pg_cron
+- [ ] **Analytics Trends** — Historical charts showing visibility score, inclusion rate, and trust score over time (data already being collected in analytics_snapshots table)
+- [ ] **Alert Notifications** — Email/webhook alerts when hallucinations spike or visibility drops (alert data already generated during scans)
+- [ ] **API Key Management** — Full CRUD for Sentinel API keys with rate limiting and usage tracking
+- [ ] **Webhook Delivery** — Real webhook endpoint delivery for Sentinel API events
+- [ ] **Competitor Tracking** — Dedicated competitor comparison dashboard (competitor data already extracted during scans)
+- [ ] **Mobile Responsive** — Collapsible sidebar and mobile-optimized layouts
+- [ ] **Export Reports** — PDF/CSV export of scan results and analytics
+
+## System Architecture
+
+```
+Frontend (React 19 + Vite)
+    ├── src/services/sentinel.js    → Core AI engine (client-side)
+    ├── src/components/             → 26 React components
+    └── src/supabase.js             → Supabase client
+
+Supabase Backend
+    ├── Edge Functions
+    │   ├── ai-query                → Routes to OpenAI or Anthropic APIs
+    │   ├── generate-content        → Claude-powered content generation
+    │   └── fact-check              → Claude-powered claim analysis
+    ├── Vault                       → Secure API key storage
+    ├── PostgreSQL                  → Brands, products, claims, alerts, analytics
+    └── Auth                        → User authentication + brand ownership
+
+Deployment
+    ├── Vercel                      → Frontend at www.T3tx.com
+    └── Supabase Cloud              → Database + Edge Functions
+```

@@ -1,0 +1,40 @@
+{
+  "name": "@t3sentinel/sdk",
+  "version": "0.1.0",
+  "description": "T3 Sentinel — AI Hallucination Detection SDK for Node.js",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "exports": {
+    ".": {
+      "require": "./src/index.js",
+      "types": "./src/index.d.ts"
+    }
+  },
+  "files": [
+    "src/"
+  ],
+  "keywords": [
+    "ai",
+    "hallucination",
+    "detection",
+    "llm",
+    "openai",
+    "anthropic",
+    "fact-checking",
+    "t3sentinel",
+    "rag",
+    "grounding"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/t3sentinel/sdk-javascript"
+  },
+  "bugs": {
+    "url": "https://github.com/t3sentinel/sdk-javascript/issues"
+  },
+  "homepage": "https://t3tx.com/docs/sdk/javascript"
+}

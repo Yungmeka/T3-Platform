@@ -336,6 +336,34 @@
 }
 .revenue-pulse { animation: revenue-pulse 2s ease-in-out infinite; }
 
+/* ═══ MOBILE RESPONSIVE ═══ */
+@media (max-width: 767px) {
+  /* Force grids to stack */
+  .grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5 {
+    grid-template-columns: 1fr !important;
+  }
+  .lg\:grid-cols-2, .lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+  /* Tighter cards */
+  .card { border-radius: 16px; }
+  /* Content type tabs: 2 cols on mobile */
+  .grid.grid-cols-5 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  /* Stat cards: 2 cols */
+  .grid.grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  /* Fix overflow */
+  pre { font-size: 11px; }
+  /* Stack flex rows */
+  .flex.gap-4.items-end {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 /* ═══ FLOATING PATHS ═══ */
 .floating-path {
   fill: none;

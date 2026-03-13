@@ -158,9 +158,9 @@ function App() {
         session={session}
       />
 
-      <div className="flex flex-col min-h-screen" style={{ marginLeft: '260px' }}>
+      <div className="flex flex-col min-h-screen md:ml-[260px]">
         {/* Breadcrumb bar */}
-        <div className="sticky top-0 z-30 flex-shrink-0 flex items-center px-8 py-3 gap-2 bg-white/80 backdrop-blur-sm" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        <div className="sticky top-0 z-30 flex-shrink-0 flex items-center px-4 md:px-8 py-3 gap-2 bg-white/80 backdrop-blur-sm pl-14 md:pl-8" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <span className="text-[11px] font-medium text-slate-400" style={{ fontFamily: 'DM Sans' }}>
             T3 Platform
           </span>
@@ -175,7 +175,7 @@ function App() {
         </div>
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="max-w-[1400px] mx-auto px-8 py-6">
+          <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-4 md:py-6">
             {selectedBrand && <ActivePage brand={selectedBrand} onNavigate={setActiveTab} />}
           </div>
         </main>

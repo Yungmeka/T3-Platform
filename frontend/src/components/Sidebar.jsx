@@ -67,6 +67,7 @@ function NavIcon({ paths }) {
 
 export default function Sidebar({ brands, selectedBrand, onSelectBrand, activeTab, onSelectTab, onBackToBrands, onSignOut, session }) {
   const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -77,11 +78,37 @@ export default function Sidebar({ brands, selectedBrand, onSelectBrand, activeTa
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  // Close mobile sidebar on tab change
+  function handleSelectTab(id) {
+    onSelectTab(id);
+    setMobileOpen(false);
+  }
+
   const userName = session?.user?.user_metadata?.full_name || session?.user?.email || 'User';
   const initials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
-    <aside className="w-[260px] h-screen flex flex-col bg-white flex-shrink-0 fixed top-0 left-0 z-40" style={{ boxShadow: '4px 0 20px rgba(0,0,0,0.03)' }}>
+    <>
+    {/* Mobile hamburger button */}
+    <button
+      onClick={() => setMobileOpen(!mobileOpen)}
+      className="fixed top-3 left-3 z-50 md:hidden w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-md border border-slate-200"
+      aria-label="Toggle menu"
+    >
+      <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        {mobileOpen
+          ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          : <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+        }
+      </svg>
+    </button>
+
+    {/* Mobile overlay */}
+    {mobileOpen && (
+      <div className="fixed inset-0 bg-black/30 z-40 md:hidden" onClick={() => setMobileOpen(false)} />
+    )}
+
+    <aside className={`w-[260px] h-screen flex flex-col bg-white flex-shrink-0 fixed top-0 left-0 z-40 transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`} style={{ boxShadow: '4px 0 20px rgba(0,0,0,0.03)' }}>
       {/* Logo */}
       <div className="px-5 pt-6 pb-4 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-sm text-white"
@@ -158,7 +185,7 @@ export default function Sidebar({ brands, selectedBrand, onSelectBrand, activeTa
               {section.items.map((item) => {
                 const isActive = activeTab === item.id;
                 return (
-                  <button key={item.id} onClick={() => onSelectTab(item.id)}
+                  <button key={item.id} onClick={() => handleSelectTab(item.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all ${
                       isActive ? 'nav-active' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                     }`}
@@ -212,5 +239,6 @@ export default function Sidebar({ brands, selectedBrand, onSelectBrand, activeTa
         )}
       </div>
     </aside>
+    </>
   );
 }

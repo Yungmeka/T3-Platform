@@ -243,7 +243,7 @@ export default function HomePage({ brands, onSelectBrand, session, onSignOut, on
       style={{ fontFamily: 'DM Sans, sans-serif' }}
     >
       {/* ── Top header bar ── */}
-      <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center gap-4">
+      <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4">
         {/* Greeting */}
         <div className="flex-1 min-w-0">
           <h1
@@ -315,7 +315,7 @@ export default function HomePage({ brands, onSelectBrand, session, onSignOut, on
       </header>
 
       {/* ── Main content ── */}
-      <main className="flex-1 px-8 py-8 max-w-[1400px] mx-auto w-full">
+      <main className="flex-1 px-4 md:px-8 py-6 md:py-8 max-w-[1400px] mx-auto w-full">
         {/* Section heading */}
         <div className="mb-6 flex items-center justify-between">
           <div>

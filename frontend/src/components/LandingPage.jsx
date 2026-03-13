@@ -177,31 +177,21 @@ function Navbar({ onGetStarted }) {
 
   return (
     <nav
+      className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-4 md:px-12 h-[60px] md:h-[68px] transition-all duration-300"
       style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 48px',
-        height: '68px',
         background: scrolled
           ? 'rgba(245, 247, 250, 0.92)'
           : 'transparent',
         backdropFilter: scrolled ? 'blur(16px)' : 'none',
         boxShadow: scrolled ? '0 1px 12px rgba(0,0,0,0.06)' : 'none',
-        transition: 'all 0.3s ease',
       }}
     >
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <div
           style={{
-            width: '38px',
-            height: '38px',
+            width: '34px',
+            height: '34px',
             borderRadius: '10px',
             background: GRAD,
             display: 'flex',
@@ -210,17 +200,18 @@ function Navbar({ onGetStarted }) {
             flexShrink: 0,
           }}
         >
-          <span style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: '15px', color: '#FFF', letterSpacing: '-0.02em' }}>
+          <span style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: '14px', color: '#FFF', letterSpacing: '-0.02em' }}>
             T3
           </span>
         </div>
         <span
           className="gradient-text"
-          style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: '22px', letterSpacing: '-0.03em' }}
+          style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: '20px', letterSpacing: '-0.03em' }}
         >
           T3
         </span>
         <span
+          className="hidden md:inline"
           style={{
             fontFamily: FONT_BODY,
             fontSize: '12px',
@@ -234,8 +225,8 @@ function Navbar({ onGetStarted }) {
         </span>
       </div>
 
-      {/* Nav links (desktop) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+      {/* Nav links (desktop only) */}
+      <div className="hidden md:flex items-center gap-8">
         {['Why T3', 'How It Works', 'Features'].map((label) => (
           <a
             key={label}
@@ -257,7 +248,17 @@ function Navbar({ onGetStarted }) {
       </div>
 
       {/* CTA */}
-      <PillButton onClick={onGetStarted}>Get Started Free</PillButton>
+      <button
+        onClick={onGetStarted}
+        className="px-4 py-2 md:px-7 md:py-3 text-xs md:text-sm font-bold text-white rounded-full"
+        style={{
+          background: GRAD,
+          fontFamily: FONT_BODY,
+          boxShadow: '0 4px 16px rgba(249, 115, 22, 0.2)',
+        }}
+      >
+        Get Started
+      </button>
     </nav>
   );
 }

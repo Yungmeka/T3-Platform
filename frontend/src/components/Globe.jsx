@@ -61,6 +61,7 @@ export default function Globe({
   autoRotateSpeed = 0.002,
   connections = DEFAULT_CONNECTIONS,
   markers = DEFAULT_MARKERS,
+  focusTarget = null,
 }) {
   const canvasRef = useRef(null);
   const rotYRef = useRef(0.4);
@@ -69,6 +70,7 @@ export default function Globe({
   const animRef = useRef(0);
   const timeRef = useRef(0);
   const dotsRef = useRef([]);
+  const focusRef = useRef({ active: false, targetRotY: 0, targetRotX: 0, pauseUntil: 0, progress: 0 });
 
   useEffect(() => {
     const dots = [];
@@ -84,6 +86,22 @@ export default function Globe({
     }
     dotsRef.current = dots;
   }, []);
+
+  useEffect(() => {
+    if (!focusTarget) {
+      focusRef.current.active = false;
+      return;
+    }
+    const targetRotY = (-focusTarget.lng * Math.PI) / 180;
+    const targetRotX = Math.max(-1, Math.min(1, (focusTarget.lat * Math.PI) / 180));
+    focusRef.current = {
+      active: true,
+      targetRotY,
+      targetRotX,
+      pauseUntil: 0,
+      progress: 0,
+    };
+  }, [focusTarget]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -103,8 +121,27 @@ export default function Globe({
     const radius = Math.min(w, h) * 0.38;
     const fov = 600;
 
-    if (!dragRef.current.active) {
-      rotYRef.current += autoRotateSpeed;
+    const focus = focusRef.current;
+    if (focus.active && !dragRef.current.active) {
+      // Lerp toward target over ~60 frames (factor 0.05 per frame)
+      const lerpFactor = 0.05;
+      rotYRef.current += (focus.targetRotY - rotYRef.current) * lerpFactor;
+      rotXRef.current += (focus.targetRotX - rotXRef.current) * lerpFactor;
+      focus.progress += 1;
+
+      // Check if close enough to consider arrived (~60 frames)
+      const distY = Math.abs(focus.targetRotY - rotYRef.current);
+      const distX = Math.abs(focus.targetRotX - rotXRef.current);
+      if (distY < 0.001 && distX < 0.001) {
+        focus.active = false;
+        focus.pauseUntil = performance.now() + 3000;
+      }
+    } else if (!dragRef.current.active) {
+      // Resume auto-rotation only after the post-focus pause has elapsed
+      const focus = focusRef.current;
+      if (!focus.pauseUntil || performance.now() > focus.pauseUntil) {
+        rotYRef.current += autoRotateSpeed;
+      }
     }
 
     timeRef.current += 0.015;
@@ -142,19 +179,13 @@ export default function Globe({
     const dots = dotsRef.current;
     for (let i = 0; i < dots.length; i++) {
       let [x, y, z] = dots[i];
-      x *= radius;
-      y *= radius;
-      z *= radius;
-
+      x *= radius; y *= radius; z *= radius;
       [x, y, z] = rotateX(x, y, z, rx);
       [x, y, z] = rotateY(x, y, z, ry);
-
       if (z > 0) continue;
-
       const [sx, sy] = projectPt(x, y, z, cx, cy, fov);
       const depthAlpha = Math.max(0.1, 1 - (z + radius) / (2 * radius));
       const dotSize = 1 + depthAlpha * 0.8;
-
       ctx.beginPath();
       ctx.arc(sx, sy, dotSize, 0, Math.PI * 2);
       ctx.fillStyle = dotColor.replace('ALPHA', depthAlpha.toFixed(2));
@@ -251,8 +282,22 @@ export default function Globe({
       }
     }
 
+    // Country name below globe when focused
+    if (focusTarget && focusTarget.name) {
+      const focusState = focusRef.current;
+      const alpha = focusState.active ? Math.min(1, focusState.progress / 60) : 1;
+      const labelY = cy + radius + 28;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = "bold 13px 'DM Sans', system-ui, sans-serif";
+      ctx.fillStyle = `rgba(192, 132, 252, ${(alpha * 0.85).toFixed(2)})`;
+      ctx.fillText(focusTarget.name, cx, labelY);
+      ctx.restore();
+    }
+
     animRef.current = requestAnimationFrame(draw);
-  }, [dotColor, arcColor, markerColor, autoRotateSpeed, connections, markers]);
+  }, [dotColor, arcColor, markerColor, autoRotateSpeed, connections, markers, focusTarget]);
 
   useEffect(() => {
     animRef.current = requestAnimationFrame(draw);

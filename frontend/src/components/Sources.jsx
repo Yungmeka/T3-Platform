@@ -115,6 +115,59 @@ function LoadingSkeleton() {
   );
 }
 
+const DEMO_DATA = {
+  aggregated: {
+    top_sources: [
+      { type: 'product_page', frequency: 18, avg_confidence: 0.92 },
+      { type: 'review_site', frequency: 14, avg_confidence: 0.78 },
+      { type: 'news', frequency: 11, avg_confidence: 0.85 },
+      { type: 'community', frequency: 9, avg_confidence: 0.64 },
+      { type: 'general_knowledge', frequency: 7, avg_confidence: 0.71 },
+      { type: 'comparison_article', frequency: 5, avg_confidence: 0.82 },
+    ],
+    recurring_gaps: [
+      { impact: 'high', frequency: 6, gap: 'No mention of recent product updates or Q1 2026 launch features', recommendation: 'Publish structured data and press releases for new features to improve AI training coverage.' },
+      { impact: 'medium', frequency: 4, gap: 'Pricing information is outdated across multiple AI responses', recommendation: 'Update pricing pages with schema markup and submit to major search indexes.' },
+      { impact: 'medium', frequency: 3, gap: 'Competitor comparisons lack nuance — AI defaults to generic summaries', recommendation: 'Create detailed comparison landing pages with structured data to guide AI responses.' },
+    ],
+  },
+  individual_analyses: [
+    {
+      likely_sources: [
+        { type: 'product_page', name: 'Official product documentation' },
+        { type: 'review_site', name: 'G2 Crowd review aggregation' },
+      ],
+      content_gaps: [
+        { gap: 'Missing enterprise tier pricing details' },
+        { gap: 'No mention of SOC 2 compliance status' },
+      ],
+      outdated_info: [
+        { claim: 'States the product launched in 2022 (actually 2023)' },
+      ],
+    },
+    {
+      likely_sources: [
+        { type: 'news', name: 'TechCrunch article from Nov 2025' },
+        { type: 'general_knowledge', name: 'Wikipedia brand summary' },
+      ],
+      content_gaps: [
+        { gap: 'Customer success stories not referenced' },
+      ],
+      outdated_info: [],
+    },
+    {
+      likely_sources: [
+        { type: 'community', name: 'Reddit r/technology discussion' },
+        { type: 'comparison_article', name: 'PCMag comparison review' },
+      ],
+      content_gaps: [],
+      outdated_info: [
+        { claim: 'References discontinued feature as still available' },
+      ],
+    },
+  ],
+};
+
 export default function Sources({ brand }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -126,7 +179,11 @@ export default function Sources({ brand }) {
     fetch(`${BACKEND}/api/sources/${brand.id}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
-      .catch(() => { setLoading(false); setError('Could not connect to backend. Make sure the server is running on port 8000.'); });
+      .catch(() => {
+        // Fallback to demo data when backend is unreachable
+        setData(DEMO_DATA);
+        setLoading(false);
+      });
   }, [brand.id]);
 
   if (loading) return <LoadingSkeleton />;

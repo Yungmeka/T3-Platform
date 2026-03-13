@@ -16,6 +16,9 @@ import LiveQuery from './components/LiveQuery';
 import VisibilityScan from './components/VisibilityScan';
 import HDE from './components/HDE';
 import Monitoring from './components/Monitoring';
+import Integrations from './components/Integrations';
+import ApiKeys from './components/ApiKeys';
+import Webhooks from './components/Webhooks';
 
 const pageLabels = {
   visibility: 'Visibility Scan',
@@ -30,6 +33,9 @@ const pageLabels = {
   query: 'Live Query',
   hde: 'T3 Sentinel',
   monitoring: 'Auto Monitor',
+  integrations: 'Integrations',
+  apikeys: 'API Keys',
+  webhooks: 'Webhooks',
 };
 
 function App() {
@@ -128,6 +134,9 @@ function App() {
     query: LiveQuery,
     hde: HDE,
     monitoring: Monitoring,
+    integrations: Integrations,
+    apikeys: ApiKeys,
+    webhooks: Webhooks,
   };
 
   const ActivePage = pages[activeTab] || Dashboard;
@@ -164,7 +173,7 @@ function App() {
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <div className="max-w-[1400px] mx-auto px-8 py-6">
-            {selectedBrand && <ActivePage brand={selectedBrand} />}
+            {selectedBrand && <ActivePage brand={selectedBrand} onNavigate={setActiveTab} />}
           </div>
         </main>
       </div>

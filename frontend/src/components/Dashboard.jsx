@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, AreaChart, Area,
 } from 'recharts';
 import Globe from './Globe';
+import WorldMap from './WorldMap';
 
 /* ─── Icon helpers ──────────────────────────────────────────────── */
 const IconShield = () => (
@@ -147,6 +148,7 @@ export default function Dashboard({ brand }) {
   const [snapshots, setSnapshots] = useState([]);
   const [latest, setLatest] = useState(null);
   const [alertCount, setAlertCount] = useState(0);
+  const [focusRegion, setFocusRegion] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -465,77 +467,43 @@ export default function Dashboard({ brand }) {
 
       {/* World Map + Globe */}
       <div className="card p-5 mb-8 animate-fade-in">
-        <h3
-          className="text-sm font-semibold mb-4"
-          style={{ color: '#0F172A', fontFamily: 'Outfit, sans-serif' }}
-        >
-          Global AI Query Tracking
-        </h3>
-        <div className="flex flex-col lg:flex-row items-center gap-6">
-          {/* SVG World Map */}
-          <div className="flex-1 min-w-0">
-            <svg viewBox="0 0 800 400" className="w-full h-auto" style={{ maxHeight: 320 }}>
-              <defs>
-                <linearGradient id="mapGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.08" />
-                  <stop offset="100%" stopColor="#EC4899" stopOpacity="0.04" />
-                </linearGradient>
-              </defs>
-              <rect width="800" height="400" fill="url(#mapGrad)" rx="8" />
-              {/* Simplified continent outlines */}
-              {/* North America */}
-              <path d="M120,80 L180,60 L220,70 L240,90 L230,130 L210,160 L180,180 L150,170 L130,150 L110,120 Z" fill="#7C3AED" fillOpacity="0.12" stroke="#7C3AED" strokeOpacity="0.3" strokeWidth="0.8" />
-              {/* South America */}
-              <path d="M180,200 L210,190 L230,210 L240,250 L230,300 L210,340 L190,350 L170,320 L165,280 L170,240 Z" fill="#7C3AED" fillOpacity="0.12" stroke="#7C3AED" strokeOpacity="0.3" strokeWidth="0.8" />
-              {/* Europe */}
-              <path d="M370,70 L400,60 L430,65 L440,80 L435,100 L420,120 L400,130 L380,125 L365,110 L360,90 Z" fill="#7C3AED" fillOpacity="0.12" stroke="#7C3AED" strokeOpacity="0.3" strokeWidth="0.8" />
-              {/* Africa */}
-              <path d="M380,150 L420,140 L450,160 L460,200 L450,260 L430,300 L400,310 L380,290 L370,240 L375,190 Z" fill="#7C3AED" fillOpacity="0.12" stroke="#7C3AED" strokeOpacity="0.3" strokeWidth="0.8" />
-              {/* Asia */}
-              <path d="M460,60 L540,50 L620,60 L660,80 L670,120 L650,160 L600,180 L540,170 L500,150 L470,120 L455,90 Z" fill="#7C3AED" fillOpacity="0.12" stroke="#7C3AED" strokeOpacity="0.3" strokeWidth="0.8" />
-              {/* Australia */}
-              <path d="M620,260 L670,250 L700,265 L710,290 L690,310 L660,315 L630,300 L620,280 Z" fill="#7C3AED" fillOpacity="0.12" stroke="#7C3AED" strokeOpacity="0.3" strokeWidth="0.8" />
+        <div className="flex items-center justify-between mb-4">
+          <h3
+            className="text-sm font-semibold"
+            style={{ color: '#0F172A', fontFamily: 'Outfit, sans-serif' }}
+          >
+            Global AI Query Tracking
+          </h3>
+          {focusRegion && (
+            <span className="text-[10px] px-2 py-1 rounded-full font-medium" style={{ background: 'rgba(124,58,237,0.08)', color: '#7C3AED', fontFamily: 'DM Sans' }}>
+              Viewing: {focusRegion.name}
+            </span>
+          )}
+        </div>
+        {/* Full-width map */}
+        <div className="w-full">
+          <WorldMap
+            onRegionClick={(region) => setFocusRegion(region)}
+            selectedRegion={focusRegion?.name}
+          />
+        </div>
 
-              {/* City markers with pulse */}
-              {[
-                { x: 165, y: 120, label: 'San Francisco', queries: '2.4k' },
-                { x: 395, y: 90, label: 'London', queries: '1.8k' },
-                { x: 610, y: 100, label: 'Tokyo', queries: '3.1k' },
-                { x: 660, y: 290, label: 'Sydney', queries: '0.9k' },
-                { x: 570, y: 145, label: 'Delhi', queries: '1.2k' },
-                { x: 200, y: 260, label: 'São Paulo', queries: '1.5k' },
-                { x: 540, y: 130, label: 'Singapore', queries: '2.0k' },
-                { x: 170, y: 180, label: 'Mexico City', queries: '0.7k' },
-                { x: 490, y: 105, label: 'Erbil', queries: '0.3k' },
-                { x: 470, y: 85, label: 'Moscow', queries: '0.5k' },
-              ].map((city, i) => (
-                <g key={city.label}>
-                  <circle cx={city.x} cy={city.y} r="8" fill="#7C3AED" fillOpacity="0.15">
-                    <animate attributeName="r" values="8;14;8" dur={`${2 + i * 0.3}s`} repeatCount="indefinite" />
-                    <animate attributeName="fill-opacity" values="0.15;0.05;0.15" dur={`${2 + i * 0.3}s`} repeatCount="indefinite" />
-                  </circle>
-                  <circle cx={city.x} cy={city.y} r="3" fill="#7C3AED" />
-                  <text x={city.x + 8} y={city.y - 6} fontSize="9" fill="#64748B" fontFamily="DM Sans" fontWeight="500">{city.label}</text>
-                  <text x={city.x + 8} y={city.y + 5} fontSize="8" fill="#7C3AED" fontFamily="DM Sans" fontWeight="600">{city.queries} queries</text>
-                </g>
-              ))}
-
-              {/* Connection lines */}
-              {[
-                [165, 120, 395, 90], [395, 90, 610, 100], [610, 100, 660, 290],
-                [165, 120, 540, 130], [395, 90, 570, 145], [165, 120, 200, 260],
-                [540, 130, 660, 290], [570, 145, 490, 105], [395, 90, 470, 85],
-              ].map(([x1, y1, x2, y2], i) => (
-                <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7C3AED" strokeOpacity="0.12" strokeWidth="0.8" strokeDasharray="4 4">
-                  <animate attributeName="stroke-dashoffset" values="0;8" dur="3s" repeatCount="indefinite" />
-                </line>
-              ))}
-            </svg>
-          </div>
-
-          {/* 3D Globe */}
-          <div className="flex-shrink-0" style={{ overflow: 'hidden' }}>
-            <Globe size={280} />
+        {/* Globe row below map */}
+        <div className="flex items-center justify-center gap-4 mt-4">
+          <p className="text-[10px]" style={{ color: '#94A3B8', fontFamily: 'DM Sans' }}>
+            Click a country to focus the globe →
+          </p>
+          <div className="flex-shrink-0 flex flex-col items-center" style={{ overflow: 'hidden' }}>
+            <Globe size={220} focusTarget={focusRegion} />
+            {focusRegion && (
+              <button
+                onClick={() => setFocusRegion(null)}
+                className="mt-1 text-[10px] px-3 py-1 rounded-full hover:bg-violet-100 transition-colors"
+                style={{ color: '#7C3AED', border: '1px solid rgba(124,58,237,0.2)', fontFamily: 'DM Sans' }}
+              >
+                Reset view
+              </button>
+            )}
           </div>
         </div>
       </div>

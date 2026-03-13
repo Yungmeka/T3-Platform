@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabase';
 import LandingPage from './components/LandingPage';
 import AuthPage from './components/AuthPage';
@@ -56,19 +56,20 @@ function App() {
   }, []);
 
   // Fetch brands belonging to this user
-  useEffect(() => {
-    async function fetchBrands() {
-      if (!session) return;
-      const { data } = await supabase
-        .from('brands')
-        .select('*')
-        .eq('user_id', session.user.id);
-      if (data) {
-        setBrands(data);
-      }
+  const fetchBrands = useCallback(async () => {
+    if (!session) return;
+    const { data } = await supabase
+      .from('brands')
+      .select('*')
+      .eq('user_id', session.user.id);
+    if (data) {
+      setBrands(data);
     }
-    fetchBrands();
   }, [session]);
+
+  useEffect(() => {
+    fetchBrands();
+  }, [fetchBrands]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();

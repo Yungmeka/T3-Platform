@@ -84,7 +84,7 @@
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.animate-fade-in { animation: fadeSlideIn 0.5s ease-out forwards; }
+.animate-fade-in { animation: fadeSlideIn 0.5s ease-out forwards; will-change: opacity, transform; }
 
 @keyframes map-pulse {
   0% { transform: scale(1); opacity: 0.8; }
@@ -344,6 +344,8 @@
   stroke-dashoffset: 0;
   animation: fp-travel var(--path-duration, 25s) linear infinite;
   animation-delay: var(--path-delay, 0s);
+  will-change: stroke-dashoffset, opacity;
+  transform: translateZ(0);
 }
 
 @keyframes fp-travel {

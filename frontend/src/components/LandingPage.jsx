@@ -268,7 +268,7 @@ function Navbar({ onGetStarted }) {
 function FloatingPaths({ position }) {
   const pathsRef = useRef(null);
   if (!pathsRef.current) {
-    pathsRef.current = Array.from({ length: 28 }, (_, i) => ({
+    pathsRef.current = Array.from({ length: 14 }, (_, i) => ({
       id: i,
       d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${
         380 - i * 5 * position
@@ -293,6 +293,8 @@ function FloatingPaths({ position }) {
         pointerEvents: 'none',
         opacity: 0.35,
         overflow: 'hidden',
+        willChange: 'transform',
+        transform: 'translateZ(0)',
       }}
     >
       <svg
@@ -335,7 +337,8 @@ function FloatingPaths({ position }) {
    SECTION: HERO
 ───────────────────────────────────────────── */
 function HeroSection({ onGetStarted }) {
-  const [ref, inView] = useInView(0.1);
+  const ref = useRef(null);
+  const inView = true; // Hero is always visible — no fade animation (fixes Chrome blink)
 
   const stats = [
     { value: '4', label: 'AI Platforms Monitored' },
@@ -1335,7 +1338,6 @@ function GlobeSection() {
             ].map((p, i) => (
               <div
                 key={p.platform}
-                className="animate-fade-in"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1344,7 +1346,6 @@ function GlobeSection() {
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.08)',
                   borderRadius: '14px',
-                  animationDelay: `${i * 120}ms`,
                 }}
               >
                 <div
@@ -1420,13 +1421,11 @@ function GlobeSection() {
             ].map((item, i) => (
               <div
                 key={i}
-                className="animate-fade-in"
                 style={{
                   padding: '10px 14px',
                   background: 'rgba(255,255,255,0.03)',
                   border: '1px solid rgba(255,255,255,0.06)',
                   borderRadius: '10px',
-                  animationDelay: `${300 + i * 150}ms`,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>

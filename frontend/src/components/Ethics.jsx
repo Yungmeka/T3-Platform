@@ -51,6 +51,11 @@ export default function Ethics({ brand }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
+    if (!import.meta.env.VITE_BACKEND_URL) {
+      setReport(DEMO_DATA);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);

@@ -128,6 +128,11 @@ export default function Audience({ brand }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
+    if (!import.meta.env.VITE_BACKEND_URL) {
+      setData(DEMO_DATA);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);

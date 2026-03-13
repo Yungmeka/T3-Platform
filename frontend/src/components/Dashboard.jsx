@@ -4,7 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area,
 } from 'recharts';
-import WorldMap from './WorldMap';
+import Globe from './Globe';
 
 /* ─── Icon helpers ──────────────────────────────────────────────── */
 const IconShield = () => (
@@ -468,7 +468,9 @@ export default function Dashboard({ brand }) {
         >
           Global AI Query Tracking
         </h3>
-        <WorldMap height={360} />
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <Globe size={360} />
+        </div>
       </div>
 
       {/* Charts row */}

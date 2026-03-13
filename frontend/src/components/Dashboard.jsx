@@ -143,8 +143,436 @@ const ChartCard = ({ title, children, style }) => (
   </div>
 );
 
+/* ─── Visibility Action Plan ────────────────────────────────────── */
+const ALL_PLATFORMS = ['chatgpt', 'gemini', 'copilot', 'perplexity'];
+
+const PLATFORM_META = {
+  chatgpt:   { label: 'ChatGPT',   icon: '🤖', color: '#10B981', badgeClass: 'badge-green' },
+  gemini:    { label: 'Gemini',    icon: '✦',  color: '#F59E0B', badgeClass: 'badge-amber' },
+  copilot:   { label: 'Copilot',   icon: '⬡',  color: '#EF4444', badgeClass: 'badge-red'   },
+  perplexity:{ label: 'Perplexity',icon: '∞',  color: '#8B5CF6', badgeClass: 'badge-purple'},
+};
+
+// Maps a gap type to the content tab content-type id + human label
+const GAP_TO_ACTION = {
+  copilot_invisible:    { contentType: 'schema',        label: 'Generate Schema.org Markup',  desc: 'JSON-LD structured data helps Copilot ground answers in verified facts.' },
+  gemini_low_reach:     { contentType: 'faq',           label: 'Create FAQ Content',          desc: 'FAQ schema is the highest-signal format Gemini surfaces in AI Overviews.' },
+  no_reddit:            { contentType: 'reddit',        label: 'Generate Reddit Post',         desc: 'Reddit threads are a top citation source across all major AI models.' },
+  missing_press:        { contentType: 'press_release', label: 'Create Press Release',         desc: 'Press coverage builds third-party authority AI models trust.' },
+  hallucinated_claims:  { contentType: 'schema',        label: 'Fix with Schema.org Markup',  desc: 'Structured data lets you assert correct facts directly to AI crawlers.' },
+  low_inclusion:        { contentType: 'faq',           label: 'Expand FAQ Coverage',          desc: 'More FAQ pages increase the surface area AI models can cite.' },
+  no_blogger_coverage:  { contentType: 'pitch_email',   label: 'Send Blogger Pitch',           desc: 'Independent reviews are high-trust citations for product queries.' },
+};
+
+function ScoreRing({ score }) {
+  const radius = 36;
+  const circ = 2 * Math.PI * radius;
+  const pct = Math.min(100, Math.max(0, score ?? 0));
+  const strokeDash = (pct / 100) * circ;
+  const color = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
+  const label = pct >= 70 ? 'Good' : pct >= 40 ? 'Fair' : 'Poor';
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: 96, height: 96 }}>
+      <svg width="96" height="96" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="48" cy="48" r={radius} fill="none" stroke="#E2E8F0" strokeWidth="8" />
+        <circle
+          cx="48" cy="48" r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="8"
+          strokeDasharray={`${strokeDash} ${circ}`}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dasharray 0.8s ease' }}
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center justify-center">
+        <span className="text-xl font-bold leading-none" style={{ color, fontFamily: 'Outfit, sans-serif' }}>
+          {pct.toFixed(0)}
+        </span>
+        <span className="text-[9px] font-semibold tracking-wide mt-0.5" style={{ color: '#94A3B8', fontFamily: 'DM Sans, sans-serif' }}>
+          {label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ActionItem({ gap, onNavigate, index }) {
+  const action = GAP_TO_ACTION[gap.type];
+  if (!action) return null;
+
+  const urgencyColors = {
+    high:   { bg: 'rgba(239,68,68,0.07)',   border: 'rgba(239,68,68,0.2)',   dot: '#EF4444', text: '#DC2626'   },
+    medium: { bg: 'rgba(245,158,11,0.07)',  border: 'rgba(245,158,11,0.22)', dot: '#F59E0B', text: '#D97706'   },
+    low:    { bg: 'rgba(124,58,237,0.05)',  border: 'rgba(124,58,237,0.18)', dot: '#8B5CF6', text: '#7C3AED'   },
+  };
+  const u = urgencyColors[gap.urgency] || urgencyColors.low;
+
+  return (
+    <div
+      className="inner-card rounded-2xl p-4 flex items-start gap-4 animate-fade-in"
+      style={{ animationDelay: `${index * 60}ms` }}
+    >
+      {/* Urgency dot */}
+      <div className="flex-shrink-0 mt-1">
+        <div
+          className="w-2.5 h-2.5 rounded-full"
+          style={{ background: u.dot, boxShadow: `0 0 6px ${u.dot}66` }}
+        />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <p
+            className="text-xs font-semibold text-slate-800 leading-snug"
+            style={{ fontFamily: 'Outfit, sans-serif' }}
+          >
+            {gap.headline}
+          </p>
+          <span
+            className="flex-shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+            style={{
+              background: u.bg,
+              border: `1px solid ${u.border}`,
+              color: u.text,
+              fontFamily: 'DM Sans, sans-serif',
+            }}
+          >
+            {gap.urgency}
+          </span>
+        </div>
+        <p className="text-[11px] mb-3 leading-relaxed" style={{ color: '#64748B', fontFamily: 'DM Sans, sans-serif' }}>
+          {action.desc}
+        </p>
+        <button
+          onClick={() => onNavigate('content')}
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[11px] font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+          style={{
+            background: 'linear-gradient(135deg, #7C3AED, #EC4899)',
+            boxShadow: '0 2px 10px rgba(124,58,237,0.3)',
+            fontFamily: 'DM Sans, sans-serif',
+          }}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          {action.label}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function VisibilityActionPlan({ brand, latest, onNavigate }) {
+  const [platformCoverage, setPlatformCoverage] = useState({});
+  const [claimStats, setClaimStats] = useState({ hallucinated: 0, missing: 0, total: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPlanData() {
+      setLoading(true);
+
+      // Fetch distinct platforms from ai_responses for this brand
+      const { data: responses } = await supabase
+        .from('ai_responses')
+        .select('platform')
+        .eq('brand_id', brand.id);
+
+      const seenPlatforms = new Set(
+        (responses || []).map((r) => (r.platform || '').toLowerCase())
+      );
+      const coverage = {};
+      for (const p of ALL_PLATFORMS) {
+        coverage[p] = seenPlatforms.has(p);
+      }
+      setPlatformCoverage(coverage);
+
+      // Fetch claims stats
+      const { data: claimsData } = await supabase
+        .from('claims')
+        .select('status')
+        .eq('brand_id', brand.id);
+
+      if (claimsData) {
+        setClaimStats({
+          hallucinated: claimsData.filter((c) => c.status === 'hallucinated').length,
+          missing:      claimsData.filter((c) => c.status === 'missing').length,
+          total:        claimsData.length,
+        });
+      }
+
+      setLoading(false);
+    }
+    fetchPlanData();
+  }, [brand.id]);
+
+  // Build ordered action items from the coverage + claim data
+  const actionGaps = (() => {
+    const gaps = [];
+    const inclusionRate = latest?.inclusion_rate ?? 0;
+
+    // Copilot invisible
+    if (!platformCoverage.copilot) {
+      gaps.push({
+        type: 'copilot_invisible',
+        headline: "You're invisible on Copilot — Generate Schema.org markup",
+        urgency: 'high',
+      });
+    }
+
+    // Gemini low reach
+    if (!platformCoverage.gemini || inclusionRate < 50) {
+      gaps.push({
+        type: 'gemini_low_reach',
+        headline: inclusionRate < 50
+          ? `Low reach on Gemini (${inclusionRate.toFixed(0)}% inclusion) — Create FAQ content`
+          : "No Gemini presence detected — Create FAQ content",
+        urgency: inclusionRate < 30 ? 'high' : 'medium',
+      });
+    }
+
+    // No Reddit presence
+    if (!platformCoverage.perplexity || claimStats.total < 5) {
+      gaps.push({
+        type: 'no_reddit',
+        headline: 'No Reddit presence detected — Generate a Reddit post',
+        urgency: 'medium',
+      });
+    }
+
+    // Missing press coverage (proxy: low total claims or missing claims)
+    if (claimStats.missing > 0 || claimStats.total < 10) {
+      gaps.push({
+        type: 'missing_press',
+        headline: 'Missing press coverage — Create a Press Release',
+        urgency: claimStats.missing > 2 ? 'high' : 'medium',
+      });
+    }
+
+    // Hallucinated claims
+    if (claimStats.hallucinated > 0) {
+      gaps.push({
+        type: 'hallucinated_claims',
+        headline: `${claimStats.hallucinated} hallucinated claim${claimStats.hallucinated > 1 ? 's' : ''} detected — Fix with Schema.org markup`,
+        urgency: claimStats.hallucinated > 3 ? 'high' : 'medium',
+      });
+    }
+
+    // Low overall inclusion
+    if (inclusionRate < 40) {
+      gaps.push({
+        type: 'low_inclusion',
+        headline: `Overall inclusion at ${inclusionRate.toFixed(0)}% — Expand FAQ coverage`,
+        urgency: 'high',
+      });
+    }
+
+    // No blogger/review coverage as a default recommendation
+    if (gaps.length < 3) {
+      gaps.push({
+        type: 'no_blogger_coverage',
+        headline: 'Expand independent review coverage — Send a Blogger Pitch',
+        urgency: 'low',
+      });
+    }
+
+    // Deduplicate by type and cap at 5
+    const seen = new Set();
+    return gaps.filter((g) => {
+      if (seen.has(g.type)) return false;
+      seen.add(g.type);
+      return true;
+    }).slice(0, 5);
+  })();
+
+  const inclusionRate = latest?.inclusion_rate ?? 0;
+  const presentPlatforms = ALL_PLATFORMS.filter((p) => platformCoverage[p]);
+  const missingPlatforms = ALL_PLATFORMS.filter((p) => !platformCoverage[p]);
+
+  return (
+    <div
+      className="mb-8 rounded-2xl animate-fade-in"
+      style={{
+        background: '#FFFFFF',
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(124,58,237,0.07)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <div
+        className="px-5 py-4 flex items-center justify-between"
+        style={{
+          background: 'linear-gradient(135deg, rgba(124,58,237,0.05), rgba(236,72,153,0.04))',
+          borderBottom: '1px solid #E2E8F0',
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)' }}
+          >
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <div>
+            <h3
+              className="text-sm font-bold text-slate-800"
+              style={{ fontFamily: 'Outfit, sans-serif' }}
+            >
+              Visibility Action Plan
+            </h3>
+            <p className="text-[11px]" style={{ color: '#94A3B8', fontFamily: 'DM Sans, sans-serif' }}>
+              Personalized steps to grow {brand.name}&apos;s AI presence
+            </p>
+          </div>
+        </div>
+        <div
+          className="text-[10px] font-bold tracking-widest px-2.5 py-1 rounded-full"
+          style={{
+            background: 'rgba(124,58,237,0.08)',
+            border: '1px solid rgba(124,58,237,0.2)',
+            color: '#7C3AED',
+            fontFamily: 'DM Sans, sans-serif',
+          }}
+        >
+          {actionGaps.length} ACTION{actionGaps.length !== 1 ? 'S' : ''}
+        </div>
+      </div>
+
+      <div className="p-5">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-8 h-8 border-2 border-violet-200 border-t-violet-500 rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Left column: Score ring + platform coverage */}
+            <div className="flex flex-col gap-4">
+              {/* AI Visibility Score */}
+              <div
+                className="inner-card rounded-2xl p-4 flex flex-col items-center text-center"
+              >
+                <p
+                  className="text-[10px] uppercase tracking-widest font-semibold mb-3"
+                  style={{ color: '#94A3B8', fontFamily: 'DM Sans, sans-serif' }}
+                >
+                  AI Visibility Score
+                </p>
+                <ScoreRing score={inclusionRate} />
+                <p className="text-[11px] mt-3 leading-relaxed" style={{ color: '#64748B', fontFamily: 'DM Sans, sans-serif' }}>
+                  {inclusionRate >= 70
+                    ? 'Strong presence across AI platforms'
+                    : inclusionRate >= 40
+                    ? 'Moderate presence — room to grow'
+                    : 'Low presence — urgent action needed'}
+                </p>
+              </div>
+
+              {/* Platform coverage */}
+              <div className="inner-card rounded-2xl p-4">
+                <p
+                  className="text-[10px] uppercase tracking-widest font-semibold mb-3"
+                  style={{ color: '#94A3B8', fontFamily: 'DM Sans, sans-serif' }}
+                >
+                  Platform Coverage
+                </p>
+                <div className="space-y-2">
+                  {ALL_PLATFORMS.map((p) => {
+                    const meta = PLATFORM_META[p];
+                    const present = !!platformCoverage[p];
+                    return (
+                      <div
+                        key={p}
+                        className="flex items-center justify-between px-3 py-2 rounded-xl"
+                        style={{
+                          background: present
+                            ? 'rgba(16,185,129,0.05)'
+                            : 'rgba(239,68,68,0.04)',
+                          border: present
+                            ? '1px solid rgba(16,185,129,0.18)'
+                            : '1px solid rgba(239,68,68,0.15)',
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm" style={{ lineHeight: 1 }}>{meta.icon}</span>
+                          <span
+                            className="text-xs font-medium"
+                            style={{ color: '#334155', fontFamily: 'DM Sans, sans-serif' }}
+                          >
+                            {meta.label}
+                          </span>
+                        </div>
+                        {present ? (
+                          <span className="text-[10px] font-semibold" style={{ color: '#059669' }}>Present</span>
+                        ) : (
+                          <span className="text-[10px] font-semibold" style={{ color: '#DC2626' }}>Missing</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Summary line */}
+                <div
+                  className="mt-3 pt-3 flex items-center justify-between"
+                  style={{ borderTop: '1px solid #F1F5F9' }}
+                >
+                  <span className="text-[11px]" style={{ color: '#64748B', fontFamily: 'DM Sans, sans-serif' }}>
+                    {presentPlatforms.length}/{ALL_PLATFORMS.length} platforms
+                  </span>
+                  <span
+                    className="text-[11px] font-bold"
+                    style={{
+                      color: missingPlatforms.length === 0 ? '#059669' : '#DC2626',
+                      fontFamily: 'Outfit, sans-serif',
+                    }}
+                  >
+                    {missingPlatforms.length === 0 ? 'Full coverage' : `${missingPlatforms.length} gap${missingPlatforms.length > 1 ? 's' : ''}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right columns: Action items (span 2 cols) */}
+            <div className="lg:col-span-2 flex flex-col gap-3">
+              <p
+                className="text-[11px] font-semibold mb-1"
+                style={{ color: '#475569', fontFamily: 'Outfit, sans-serif' }}
+              >
+                Recommended actions — click any to open the Content Generator
+              </p>
+              {actionGaps.length === 0 ? (
+                <div
+                  className="inner-card rounded-2xl p-6 text-center"
+                >
+                  <p className="text-2xl mb-2">✓</p>
+                  <p className="text-sm font-semibold text-slate-700" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                    All clear — no gaps detected
+                  </p>
+                  <p className="text-[11px] mt-1" style={{ color: '#94A3B8', fontFamily: 'DM Sans, sans-serif' }}>
+                    Keep publishing high-quality content to maintain your score.
+                  </p>
+                </div>
+              ) : (
+                actionGaps.map((gap, i) => (
+                  <ActionItem key={gap.type} gap={gap} onNavigate={onNavigate} index={i} />
+                ))
+              )}
+            </div>
+
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Dashboard ────────────────────────────────────────────── */
-export default function Dashboard({ brand }) {
+export default function Dashboard({ brand, onNavigate }) {
   const [snapshots, setSnapshots] = useState([]);
   const [latest, setLatest] = useState(null);
   const [alertCount, setAlertCount] = useState(0);
@@ -230,6 +658,9 @@ export default function Dashboard({ brand }) {
           </p>
         </div>
       </div>
+
+      {/* Visibility Action Plan */}
+      <VisibilityActionPlan brand={brand} latest={latest} onNavigate={onNavigate} />
 
       {/* How It Works — horizontal bar */}
       <div

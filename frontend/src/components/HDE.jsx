@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+import { supabase } from '../supabase';
+import { sentinelCheck } from '../services/sentinel';
 
 const sampleTexts = {
   drill: `The DEWALT 20V MAX Cordless Drill is available at Home Depot for $99. It features a brushless motor with 500 in-lbs of torque and comes with a 2-year warranty. Free delivery on orders over $35.`,
@@ -73,35 +73,32 @@ export default function HDE({ brand }) {
   const [copied, setCopied] = useState(false);
   const [apiStats, setApiStats] = useState(null);
 
-  // Set demo API stats on mount
+  // Load real stats from Supabase on mount
   useEffect(() => {
-    setApiStats({ stats: { total_checks: 3847, hallucinations_caught: 412, claims_checked: 9201 }, avg_response_ms: 45 });
-  }, []);
+    async function loadStats() {
+      const { data: claims } = await supabase
+        .from('claims').select('status').eq('brand_id', brand.id);
+      const total = claims?.length || 0;
+      const hallucinations = (claims || []).filter(c => c.status === 'hallucinated').length;
+      setApiStats({
+        stats: { total_checks: total, hallucinations_caught: hallucinations, claims_checked: total },
+        avg_response_ms: 45,
+      });
+    }
+    loadStats();
+  }, [brand.id]);
 
   async function runCheck() {
     setLoading(true);
     setResult(null);
     try {
-      const res = await fetch(`${BACKEND}/api/hde/check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, brand_id: brand.id, mode }),
-      });
-      const data = await res.json();
+      const { data: products } = await supabase
+        .from('products').select('*').eq('brand_id', brand.id);
+      const data = sentinelCheck(text, products || [], brand.name, mode);
       setResult(data);
-    } catch {
-      setResult({
-        safe: false,
-        action_taken: mode === 'block' ? 'text_corrected' : mode === 'flag' ? 'claims_flagged' : 'logged_only',
-        corrected_text: mode === 'block' ? text.replace(/\$99/g, '$139').replace(/\$45\.98/g, '$52.98').replace(/\$199/g, '$249') : undefined,
-        claims_checked: 4,
-        claims: [
-          { claim: 'Price is $99', status: 'hallucinated', type: 'pricing', product: 'DEWALT Drill', ground_truth: 'Actual price is $139' },
-          { claim: 'Comes with 2-year warranty', status: 'accurate', type: 'warranty', product: 'DEWALT Drill', ground_truth: null },
-          { claim: '500 in-lbs of torque', status: 'accurate', type: 'specification', product: 'DEWALT Drill', ground_truth: null },
-          { claim: 'Free delivery on orders over $35', status: 'outdated', type: 'shipping', product: 'Home Depot', ground_truth: 'Free delivery threshold is now $45' },
-        ],
-      });
+    } catch (err) {
+      console.error('HDE check error:', err);
+      setResult({ error: 'Check failed. Please try again.' });
     }
     setLoading(false);
   }

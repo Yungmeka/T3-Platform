@@ -19,10 +19,12 @@ import Monitoring from './components/Monitoring';
 import Integrations from './components/Integrations';
 import ApiKeys from './components/ApiKeys';
 import Webhooks from './components/Webhooks';
+import FullPipeline from './components/FullPipeline';
 
 const pageLabels = {
   visibility: 'Visibility Scan',
   dashboard: 'Dashboard',
+  pipeline: 'Full AI Pipeline',
   alerts: 'Alerts',
   claims: 'Claims',
   sources: 'Sources',
@@ -124,6 +126,7 @@ function App() {
   const pages = {
     visibility: VisibilityScan,
     dashboard: Dashboard,
+    pipeline: FullPipeline,
     alerts: Alerts,
     claims: Claims,
     sources: Sources,

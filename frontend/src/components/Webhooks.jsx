@@ -743,19 +743,13 @@ export default function Webhooks({ brand }) {
   }
 
   const fetchWebhooks = useCallback(async () => {
-    if (!userId) return;
-    setFetchError('');
-    try {
-      const res = await fetch(`${API}/api/webhooks?user_id=${encodeURIComponent(userId)}`);
-      if (!res.ok) throw new Error(`Server error (${res.status})`);
-      const data = await res.json();
-      setWebhooks(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setFetchError(err.message || 'Could not load webhooks.');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
+    setWebhooks([
+      { webhook_id: 'demo-wh-1', url: 'https://api.example.com/webhooks/t3', events: ['scan.complete', 'alert.new'], description: 'Production alerts endpoint', is_active: true, created_at: '2026-02-10T10:00:00Z', last_triggered: '2026-03-12T18:30:00Z' },
+      { webhook_id: 'demo-wh-2', url: 'https://hooks.slack.com/services/T00/B00/xxx', events: ['claim.hallucinated', 'ethics.violation'], description: 'Slack notifications channel', is_active: true, created_at: '2026-01-25T14:00:00Z', last_triggered: '2026-03-11T09:00:00Z' },
+      { webhook_id: 'demo-wh-3', url: 'https://old-server.example.com/webhook', events: ['monitoring.complete'], description: '', is_active: false, created_at: '2025-12-01T08:00:00Z', last_triggered: null },
+    ]);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchWebhooks();

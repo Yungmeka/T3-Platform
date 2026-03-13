@@ -1,55 +1,128 @@
 import { useState, useEffect } from 'react';
-
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-
-const DEMO_DATA = {
-  ethics_score: {
-    grade: 'B',
-    overall: 76,
-    components: {
-      accuracy: 82,
-      transparency: 71,
-      fairness: 78,
-      harm_prevention: 73,
-    },
-  },
-  monitoring: {
-    total_claims_analyzed: 847,
-    hallucinations_detected: 23,
-    outdated_info_detected: 14,
-    hallucination_trend: { direction: 'improving', change: -12 },
-    most_common_hallucination: 'fabricated product features',
-    monitoring_frequency: 'Every 6 hours',
-  },
-  actions: {
-    action_pipeline: [
-      { step: 1, action: 'Detect', description: 'AI continuously monitors brand mentions across all major AI platforms for inaccuracies and hallucinations' },
-      { step: 2, action: 'Classify', description: 'Each issue is classified by severity, type, and potential business impact using our proprietary scoring model' },
-      { step: 3, action: 'Alert', description: 'Stakeholders are notified via webhook, email, or Slack with full context and recommended actions' },
-      { step: 4, action: 'Correct', description: 'Automated correction requests are filed with AI platforms along with verified source documentation' },
-    ],
-    total_alerts: 37,
-    resolved: 31,
-    resolution_rate: 84,
-  },
-  trust_improvement: {
-    period: 'Last 90 days',
-    brand_trust_score: { current: '8.2/10', change: 0.6, direction: 'improved' },
-    accuracy_score: { current: '82%', change: 5, direction: 'improved' },
-    hallucination_rate: { current: '2.7%', change: -1.4, direction: 'improved' },
-    inclusion_rate: { current: '74%', change: 3, direction: 'improved' },
-    business_impact_indicators: [
-      'Brand mention accuracy improved 5% across ChatGPT and Gemini responses',
-      'Hallucination rate decreased from 4.1% to 2.7% after automated corrections',
-      'Customer support tickets related to AI misinformation dropped by 22%',
-      'Brand visibility score increased in 3 of 4 target audience segments',
-    ],
-  },
-};
+import { supabase } from '../supabase';
 
 export default function Ethics({ brand }) {
-  const [report] = useState(DEMO_DATA);
-  const [loading] = useState(false);
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchEthics() {
+      setLoading(true);
+      try {
+        // Fetch claims for this brand
+        const { data: claims } = await supabase
+          .from('claims')
+          .select('*')
+          .eq('brand_id', brand.id);
+
+        // Fetch alerts for this brand
+        const { data: alerts } = await supabase
+          .from('alerts')
+          .select('*')
+          .eq('brand_id', brand.id)
+          .order('created_at', { ascending: false });
+
+        // Fetch analytics snapshots (last 30 days)
+        const { data: snapshots } = await supabase
+          .from('analytics_snapshots')
+          .select('*')
+          .eq('brand_id', brand.id)
+          .order('date', { ascending: false })
+          .limit(30);
+
+        const latest = snapshots?.[0];
+        const oldest = snapshots?.[snapshots.length - 1];
+        const totalClaims = claims?.length || 0;
+        const accurate = claims?.filter(c => c.status === 'accurate').length || 0;
+        const hallucinated = claims?.filter(c => c.status === 'hallucinated').length || 0;
+        const outdated = claims?.filter(c => c.status === 'outdated').length || 0;
+
+        const accuracyPct = totalClaims > 0 ? Math.round((accurate / totalClaims) * 100) : 0;
+        const hallucinationPct = totalClaims > 0 ? Math.round((hallucinated / totalClaims) * 100) : 0;
+
+        // Compute ethics grade from real metrics
+        const trustScore = Number(latest?.brand_trust_score || 50);
+        const accuracyScore = Number(latest?.accuracy_score || accuracyPct);
+        const overall = Math.round((trustScore + accuracyScore + (100 - hallucinationPct)) / 3);
+        const grade = overall >= 85 ? 'A' : overall >= 70 ? 'B' : overall >= 55 ? 'C' : 'D';
+
+        // Compute trend from snapshots
+        const prevAccuracy = oldest ? Number(oldest.accuracy_score || 0) : accuracyScore;
+        const accuracyChange = Math.round(accuracyScore - prevAccuracy);
+        const prevHallRate = oldest ? Number(oldest.hallucination_rate || 0) : hallucinationPct;
+
+        // Most common hallucination type
+        const hallucinatedClaims = claims?.filter(c => c.status === 'hallucinated') || [];
+        const typeCount = {};
+        hallucinatedClaims.forEach(c => { typeCount[c.claim_type] = (typeCount[c.claim_type] || 0) + 1; });
+        const mostCommon = Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0];
+
+        const totalAlerts = alerts?.length || 0;
+        const resolvedAlerts = alerts?.filter(a => a.resolved).length || 0;
+        const resolutionRate = totalAlerts > 0 ? Math.round((resolvedAlerts / totalAlerts) * 100) : 0;
+
+        // Trust improvement from snapshots
+        const inclusionChange = latest && oldest
+          ? Math.round(Number(latest.inclusion_rate) - Number(oldest.inclusion_rate))
+          : 0;
+        const halRateChange = latest && oldest
+          ? (Number(latest.hallucination_rate) - Number(oldest.hallucination_rate)).toFixed(1)
+          : 0;
+
+        setReport({
+          ethics_score: {
+            grade,
+            overall,
+            components: {
+              accuracy: Math.round(accuracyScore),
+              transparency: Math.round(trustScore * 0.9),
+              fairness: Math.round((accuracyScore + trustScore) / 2),
+              harm_prevention: Math.round(100 - hallucinationPct),
+            },
+          },
+          monitoring: {
+            total_claims_analyzed: totalClaims,
+            hallucinations_detected: hallucinated,
+            outdated_info_detected: outdated,
+            hallucination_trend: {
+              direction: Number(halRateChange) <= 0 ? 'improving' : 'worsening',
+              change: Number(halRateChange),
+            },
+            most_common_hallucination: mostCommon ? `fabricated ${mostCommon[0]} information` : 'none detected',
+            monitoring_frequency: 'Every 6 hours',
+          },
+          actions: {
+            action_pipeline: [
+              { step: 1, action: 'Detect', description: 'AI continuously monitors brand mentions across all major AI platforms for inaccuracies and hallucinations' },
+              { step: 2, action: 'Classify', description: 'Each issue is classified by severity, type, and potential business impact using our proprietary scoring model' },
+              { step: 3, action: 'Alert', description: 'Stakeholders are notified via webhook, email, or Slack with full context and recommended actions' },
+              { step: 4, action: 'Correct', description: 'Automated correction requests are filed with AI platforms along with verified source documentation' },
+            ],
+            total_alerts: totalAlerts,
+            resolved: resolvedAlerts,
+            resolution_rate: resolutionRate,
+          },
+          trust_improvement: {
+            period: snapshots?.length > 1 ? `Last ${snapshots.length} days` : 'Current',
+            brand_trust_score: { current: `${(trustScore / 10).toFixed(1)}/10`, change: latest && oldest ? Number((Number(latest.brand_trust_score) - Number(oldest.brand_trust_score)).toFixed(1)) : 0, direction: Number(latest?.brand_trust_score || 0) >= Number(oldest?.brand_trust_score || 0) ? 'improved' : 'declined' },
+            accuracy_score: { current: `${Math.round(accuracyScore)}%`, change: accuracyChange, direction: accuracyChange >= 0 ? 'improved' : 'declined' },
+            hallucination_rate: { current: `${Number(latest?.hallucination_rate || hallucinationPct).toFixed(1)}%`, change: Number(halRateChange), direction: Number(halRateChange) <= 0 ? 'improved' : 'worsened' },
+            inclusion_rate: { current: `${Math.round(Number(latest?.inclusion_rate || 0))}%`, change: inclusionChange, direction: inclusionChange >= 0 ? 'improved' : 'declined' },
+            business_impact_indicators: [
+              `${totalClaims} total claims analyzed across all AI platforms`,
+              `${accurate} accurate claims verified (${accuracyPct}% accuracy rate)`,
+              `${hallucinated} hallucinations detected and flagged for correction`,
+              `${totalAlerts} alerts generated, ${resolvedAlerts} resolved (${resolutionRate}% resolution rate)`,
+            ],
+          },
+        });
+      } catch (err) {
+        console.error('Ethics fetch error:', err);
+      }
+      setLoading(false);
+    }
+    fetchEthics();
+  }, [brand.id]);
 
   if (loading) return (
     <div className="space-y-6 animate-pulse">

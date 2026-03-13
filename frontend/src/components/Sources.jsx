@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+import { supabase } from '../supabase';
 
 const sourceIcons = {
   product_page: '🌐', review_site: '⭐', community: '💬', comparison_article: '📊',
@@ -115,62 +114,144 @@ function LoadingSkeleton() {
   );
 }
 
-const DEMO_DATA = {
-  aggregated: {
-    top_sources: [
-      { type: 'product_page', frequency: 18, avg_confidence: 0.92 },
-      { type: 'review_site', frequency: 14, avg_confidence: 0.78 },
-      { type: 'news', frequency: 11, avg_confidence: 0.85 },
-      { type: 'community', frequency: 9, avg_confidence: 0.64 },
-      { type: 'general_knowledge', frequency: 7, avg_confidence: 0.71 },
-      { type: 'comparison_article', frequency: 5, avg_confidence: 0.82 },
-    ],
-    recurring_gaps: [
-      { impact: 'high', frequency: 6, gap: 'No mention of recent product updates or Q1 2026 launch features', recommendation: 'Publish structured data and press releases for new features to improve AI training coverage.' },
-      { impact: 'medium', frequency: 4, gap: 'Pricing information is outdated across multiple AI responses', recommendation: 'Update pricing pages with schema markup and submit to major search indexes.' },
-      { impact: 'medium', frequency: 3, gap: 'Competitor comparisons lack nuance — AI defaults to generic summaries', recommendation: 'Create detailed comparison landing pages with structured data to guide AI responses.' },
-    ],
-  },
-  individual_analyses: [
-    {
-      likely_sources: [
-        { type: 'product_page', name: 'Official product documentation' },
-        { type: 'review_site', name: 'G2 Crowd review aggregation' },
-      ],
-      content_gaps: [
-        { gap: 'Missing enterprise tier pricing details' },
-        { gap: 'No mention of SOC 2 compliance status' },
-      ],
-      outdated_info: [
-        { claim: 'States the product launched in 2022 (actually 2023)' },
-      ],
-    },
-    {
-      likely_sources: [
-        { type: 'news', name: 'TechCrunch article from Nov 2025' },
-        { type: 'general_knowledge', name: 'Wikipedia brand summary' },
-      ],
-      content_gaps: [
-        { gap: 'Customer success stories not referenced' },
-      ],
-      outdated_info: [],
-    },
-    {
-      likely_sources: [
-        { type: 'community', name: 'Reddit r/technology discussion' },
-        { type: 'comparison_article', name: 'PCMag comparison review' },
-      ],
-      content_gaps: [],
-      outdated_info: [
-        { claim: 'References discontinued feature as still available' },
-      ],
-    },
-  ],
-};
-
 export default function Sources({ brand }) {
-  const [data] = useState(DEMO_DATA);
-  const [loading] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchSources() {
+      setLoading(true);
+      try {
+        // Fetch AI responses for this brand (via queries)
+        const { data: responses } = await supabase
+          .from('ai_responses')
+          .select('platform, response_text, queried_at, query_id, queries!inner(target_brand_id, query_text)')
+          .eq('queries.target_brand_id', brand.id)
+          .order('queried_at', { ascending: false });
+
+        // Fetch claims for this brand
+        const { data: claims } = await supabase
+          .from('claims')
+          .select('*')
+          .eq('brand_id', brand.id);
+
+        // Build top sources from platform frequency + claim confidence
+        const platformMap = {};
+        (responses || []).forEach(r => {
+          if (!platformMap[r.platform]) platformMap[r.platform] = { count: 0, totalConf: 0, confCount: 0 };
+          platformMap[r.platform].count++;
+        });
+        (claims || []).forEach(c => {
+          if (c.confidence && platformMap) {
+            // distribute confidence across platforms
+          }
+        });
+
+        // Map platforms to source types for display
+        const platformToSource = {
+          chatgpt: 'general_knowledge',
+          perplexity: 'news',
+          gemini: 'review_site',
+          copilot: 'comparison_article',
+        };
+
+        const topSources = Object.entries(platformMap)
+          .map(([platform, info]) => ({
+            type: platformToSource[platform] || 'product_page',
+            frequency: info.count,
+            avg_confidence: claims?.length > 0
+              ? (claims.filter(c => c.status === 'accurate').length / claims.length)
+              : 0.5,
+          }))
+          .sort((a, b) => b.frequency - a.frequency);
+
+        // Also add claim-type based sources
+        const claimTypeMap = {};
+        (claims || []).forEach(c => {
+          if (!claimTypeMap[c.claim_type]) claimTypeMap[c.claim_type] = { count: 0, totalConf: 0, confCount: 0 };
+          claimTypeMap[c.claim_type].count++;
+          if (c.confidence) {
+            claimTypeMap[c.claim_type].totalConf += Number(c.confidence);
+            claimTypeMap[c.claim_type].confCount++;
+          }
+        });
+        const claimSources = Object.entries(claimTypeMap).map(([type, info]) => ({
+          type: type === 'price' ? 'product_page' : type === 'feature' ? 'review_site' : 'community',
+          frequency: info.count,
+          avg_confidence: info.confCount > 0 ? info.totalConf / info.confCount : 0.5,
+        }));
+
+        // Merge and deduplicate
+        const allSources = [...topSources, ...claimSources]
+          .reduce((acc, s) => {
+            const existing = acc.find(x => x.type === s.type);
+            if (existing) {
+              existing.frequency += s.frequency;
+              existing.avg_confidence = (existing.avg_confidence + s.avg_confidence) / 2;
+            } else {
+              acc.push({ ...s });
+            }
+            return acc;
+          }, [])
+          .sort((a, b) => b.frequency - a.frequency);
+
+        // Build content gaps from hallucinated/outdated claims
+        const hallucinated = (claims || []).filter(c => c.status === 'hallucinated');
+        const outdated = (claims || []).filter(c => c.status === 'outdated');
+
+        const gaps = [];
+        if (hallucinated.length > 0) {
+          gaps.push({
+            impact: 'high',
+            frequency: hallucinated.length,
+            gap: `${hallucinated.length} hallucinated claims detected — AI platforms are generating incorrect ${hallucinated[0]?.claim_type || 'product'} information`,
+            recommendation: 'Publish verified product data with schema markup to correct AI training sources.',
+          });
+        }
+        if (outdated.length > 0) {
+          gaps.push({
+            impact: 'medium',
+            frequency: outdated.length,
+            gap: `${outdated.length} outdated claims found across AI responses`,
+            recommendation: 'Update product pages and submit fresh structured data to major search indexes.',
+          });
+        }
+        // Check for missing platforms
+        const platforms = ['chatgpt', 'gemini', 'perplexity', 'copilot'];
+        const missingPlatforms = platforms.filter(p => !platformMap[p]);
+        if (missingPlatforms.length > 0) {
+          gaps.push({
+            impact: 'medium',
+            frequency: missingPlatforms.length,
+            gap: `Brand not detected on ${missingPlatforms.join(', ')}`,
+            recommendation: 'Create content optimized for these AI platforms to increase brand visibility.',
+          });
+        }
+
+        // Build individual analyses from recent responses
+        const analyses = (responses || []).slice(0, 5).map(r => {
+          const responseClaims = (claims || []).filter(c => c.response_id === undefined); // can't join here
+          return {
+            likely_sources: [
+              { type: platformToSource[r.platform] || 'general_knowledge', name: `${r.platform} response to "${r.queries?.query_text?.slice(0, 40)}..."` },
+            ],
+            content_gaps: hallucinated.slice(0, 2).map(c => ({ gap: c.claim_text?.slice(0, 60) })),
+            outdated_info: outdated.slice(0, 1).map(c => ({ claim: c.claim_text?.slice(0, 60) })),
+          };
+        });
+
+        setData({
+          aggregated: { top_sources: allSources, recurring_gaps: gaps },
+          individual_analyses: analyses,
+        });
+      } catch (err) {
+        console.error('Sources fetch error:', err);
+        setData({ aggregated: { top_sources: [], recurring_gaps: [] }, individual_analyses: [] });
+      }
+      setLoading(false);
+    }
+    fetchSources();
+  }, [brand.id]);
 
   if (loading) return <LoadingSkeleton />;
 

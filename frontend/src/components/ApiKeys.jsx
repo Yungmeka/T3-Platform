@@ -449,21 +449,15 @@ export default function ApiKeys({ brand }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }
 
-  /* ── Fetch keys ── */
+  /* ── Demo keys (backend not deployed) ── */
   const fetchKeys = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`${API_URL}/api/keys?user_id=${brand.user_id}`);
-      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-      const data = await res.json();
-      setKeys(Array.isArray(data) ? data : []);
-    } catch (err) {
-      addToast(`Failed to load API keys: ${err.message}`, 'error');
-      setKeys([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [brand.user_id]);
+    setKeys([
+      { key_id: 'demo-1', name: 'Production Backend', prefix: 't3s_live_abc', is_active: true, created_at: '2026-02-15T10:00:00Z', last_used: '2026-03-12T14:30:00Z' },
+      { key_id: 'demo-2', name: 'Staging Environment', prefix: 't3s_test_xyz', is_active: true, created_at: '2026-01-20T08:00:00Z', last_used: '2026-03-10T09:15:00Z' },
+      { key_id: 'demo-3', name: 'Old Integration', prefix: 't3s_live_old', is_active: false, created_at: '2025-11-01T12:00:00Z', last_used: '2026-01-05T16:45:00Z' },
+    ]);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchKeys();
@@ -482,50 +476,28 @@ export default function ApiKeys({ brand }) {
     const trimmed = keyName.trim();
     if (!trimmed) return;
 
-    try {
-      setCreating(true);
-      const res = await fetch(`${API_URL}/api/keys`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed, user_id: brand.user_id }),
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.detail || errBody.message || `Server error ${res.status}`);
-      }
-      const created = await res.json();
+    setCreating(true);
+    setTimeout(() => {
+      const created = { key_id: 'demo-' + Date.now(), api_key: 't3s_live_' + Math.random().toString(36).slice(2, 14), name: trimmed, prefix: 't3s_live_' + Math.random().toString(36).slice(2, 5), created_at: new Date().toISOString() };
       setNewKey(created);
+      setKeys(prev => [{ ...created, is_active: true, last_used: null }, ...prev]);
       setKeyName('');
       setShowForm(false);
       addToast(`Key "${created.name}" created successfully.`, 'success');
-      await fetchKeys();
-    } catch (err) {
-      addToast(`Could not create key: ${err.message}`, 'error');
-    } finally {
       setCreating(false);
-    }
+    }, 600);
   }
 
   /* ── Revoke key ── */
   async function handleRevoke() {
     if (!revokeTarget) return;
-    try {
-      setRevoking(true);
-      const res = await fetch(`${API_URL}/api/keys/${revokeTarget.key_id}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.detail || errBody.message || `Server error ${res.status}`);
-      }
+    setRevoking(true);
+    setTimeout(() => {
+      setKeys(prev => prev.map(k => k.key_id === revokeTarget.key_id ? { ...k, is_active: false } : k));
       addToast(`Key "${revokeTarget.name}" has been revoked.`, 'success');
       setRevokeTarget(null);
-      await fetchKeys();
-    } catch (err) {
-      addToast(`Could not revoke key: ${err.message}`, 'error');
-    } finally {
       setRevoking(false);
-    }
+    }, 500);
   }
 
   /* ── Derived stats ── */

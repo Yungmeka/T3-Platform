@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+import { supabase } from '../supabase';
 
 const priorityBadge = {
   critical: 'badge-red',
@@ -63,70 +62,119 @@ function ReachBar({ rate }) {
   );
 }
 
-const DEMO_DATA = {
-  reached_audiences: [
-    { segment: 'Tech-savvy professionals', reach_rate: 78 },
-    { segment: 'Enterprise decision makers', reach_rate: 65 },
-  ],
-  underserved_audiences: [
-    { segment: 'Small business owners', reach_rate: 32 },
-    { segment: 'International markets', reach_rate: 18 },
-  ],
-  invisible_audiences: [
-    { segment: 'Gen Z consumers', reach_rate: 0 },
-  ],
-  segments: [
-    {
-      segment: 'Tech-Savvy Professionals',
-      description: 'Software engineers, data scientists, and IT managers who evaluate tools for their teams.',
-      reach_rate: 78,
-      demographics: '25-45, urban, high income',
-      ai_behavior: 'Ask detailed technical comparison questions',
-      sample_queries: ['best tools for data pipeline', 'enterprise API comparison 2026'],
-    },
-    {
-      segment: 'Enterprise Decision Makers',
-      description: 'CTOs, VPs of Engineering, and procurement leads evaluating solutions at scale.',
-      reach_rate: 65,
-      demographics: '35-55, corporate, director+',
-      ai_behavior: 'Focus on ROI, compliance, and integration capabilities',
-      sample_queries: ['enterprise security compliance tools', 'SOC 2 certified platforms'],
-    },
-    {
-      segment: 'Small Business Owners',
-      description: 'Founders and operators of companies with 1-50 employees seeking affordable solutions.',
-      reach_rate: 32,
-      demographics: '28-50, varied locations, budget-conscious',
-      ai_behavior: 'Price-sensitive queries, seek simplicity and quick setup',
-      sample_queries: ['affordable business tools for startups', 'easy to use project management'],
-    },
-    {
-      segment: 'International Markets',
-      description: 'Users outside North America searching in local languages or regional context.',
-      reach_rate: 18,
-      demographics: 'Global, non-English primary, varied',
-      ai_behavior: 'Search in local languages, prioritize regional availability',
-      sample_queries: ['outils de gestion de projet', 'herramientas empresariales'],
-    },
-    {
-      segment: 'Gen Z Consumers',
-      description: 'Digital-native users aged 18-26 who discover brands through social and AI assistants.',
-      reach_rate: 0,
-      demographics: '18-26, digital-first, mobile-heavy',
-      ai_behavior: 'Conversational queries, voice search, TikTok-style discovery',
-      sample_queries: ['what app should I use for X', 'is this brand legit'],
-    },
-  ],
-  recommendations: [
-    { priority: 'critical', segment: 'Gen Z Consumers', action: 'Create conversational content optimized for AI assistants', detail: 'Gen Z users are completely invisible in AI responses. Build FAQ-style content, social proof snippets, and conversational landing pages that AI models can easily reference.' },
-    { priority: 'high', segment: 'International Markets', action: 'Localize key pages and structured data', detail: 'Only 18% reach in international markets. Translate product pages, create region-specific case studies, and add hreflang tags for multilingual SEO.' },
-    { priority: 'maintain', segment: 'Tech-Savvy Professionals', action: 'Continue publishing technical deep-dives', detail: 'Strong 78% reach. Maintain momentum with regular technical blog posts, API documentation updates, and developer community engagement.' },
-  ],
-};
-
 export default function Audience({ brand }) {
-  const [data] = useState(DEMO_DATA);
-  const [loading] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAudience() {
+      setLoading(true);
+      try {
+        // Fetch AI responses for this brand grouped by platform
+        const { data: responses } = await supabase
+          .from('ai_responses')
+          .select('platform, response_text, queries!inner(target_brand_id, query_text, category)')
+          .eq('queries.target_brand_id', brand.id);
+
+        // Fetch latest analytics snapshot
+        const { data: snapshots } = await supabase
+          .from('analytics_snapshots')
+          .select('*')
+          .eq('brand_id', brand.id)
+          .order('date', { ascending: false })
+          .limit(1);
+
+        // Fetch queries for sample queries
+        const { data: queries } = await supabase
+          .from('queries')
+          .select('query_text, category')
+          .eq('target_brand_id', brand.id);
+
+        const latest = snapshots?.[0];
+        const inclusionRate = Number(latest?.inclusion_rate || 0);
+
+        // Build platform segments as audience segments
+        const platformInfo = {
+          chatgpt: { segment: 'ChatGPT Users', description: 'Users asking product and shopping questions through ChatGPT — the largest AI assistant audience.', demographics: 'Broad, 18-55, tech-forward', ai_behavior: 'Conversational product research and comparisons' },
+          gemini: { segment: 'Gemini Users', description: 'Google Gemini users who discover brands through integrated AI search and recommendations.', demographics: 'Google ecosystem, 25-50, search-heavy', ai_behavior: 'Search-integrated queries, factual lookups' },
+          perplexity: { segment: 'Perplexity Users', description: 'Research-oriented users who rely on Perplexity for sourced, detailed product analysis.', demographics: '25-45, researchers, detail-oriented', ai_behavior: 'Deep research queries with source verification' },
+          copilot: { segment: 'Copilot Users', description: 'Microsoft Copilot users in enterprise and productivity contexts discovering brands.', demographics: '30-55, enterprise, Microsoft ecosystem', ai_behavior: 'Work-integrated queries, enterprise focus' },
+        };
+
+        const platformCounts = {};
+        const totalResponses = responses?.length || 0;
+        (responses || []).forEach(r => {
+          platformCounts[r.platform] = (platformCounts[r.platform] || 0) + 1;
+        });
+
+        // Check which responses actually mention the brand
+        const brandName = brand.name.toLowerCase();
+        const platformMentions = {};
+        (responses || []).forEach(r => {
+          if (!platformMentions[r.platform]) platformMentions[r.platform] = { total: 0, mentions: 0 };
+          platformMentions[r.platform].total++;
+          if (r.response_text?.toLowerCase().includes(brandName)) {
+            platformMentions[r.platform].mentions++;
+          }
+        });
+
+        const segments = Object.entries(platformInfo).map(([platform, info]) => {
+          const pm = platformMentions[platform] || { total: 0, mentions: 0 };
+          const reachRate = pm.total > 0 ? Math.round((pm.mentions / pm.total) * 100) : 0;
+          const platformQueries = (queries || []).slice(0, 2).map(q => q.query_text);
+          return {
+            ...info,
+            reach_rate: reachRate,
+            sample_queries: platformQueries,
+          };
+        }).sort((a, b) => b.reach_rate - a.reach_rate);
+
+        const reached = segments.filter(s => s.reach_rate >= 50);
+        const underserved = segments.filter(s => s.reach_rate > 0 && s.reach_rate < 50);
+        const invisible = segments.filter(s => s.reach_rate === 0);
+
+        // Build recommendations from real data
+        const recommendations = [];
+        invisible.forEach(s => {
+          recommendations.push({
+            priority: 'critical',
+            segment: s.segment,
+            action: `Increase brand presence for ${s.segment}`,
+            detail: `${brand.name} has 0% reach on this platform. Create optimized content and structured data targeting this AI channel.`,
+          });
+        });
+        underserved.forEach(s => {
+          recommendations.push({
+            priority: 'high',
+            segment: s.segment,
+            action: `Improve reach for ${s.segment} (currently ${s.reach_rate}%)`,
+            detail: `Brand is mentioned in only ${s.reach_rate}% of responses. Publish more detailed product content and FAQ schemas.`,
+          });
+        });
+        reached.forEach(s => {
+          recommendations.push({
+            priority: 'maintain',
+            segment: s.segment,
+            action: `Maintain strong ${s.reach_rate}% reach on ${s.segment}`,
+            detail: `Good visibility on this platform. Continue publishing fresh content and monitor for accuracy.`,
+          });
+        });
+
+        setData({
+          reached_audiences: reached.map(s => ({ segment: s.segment, reach_rate: s.reach_rate })),
+          underserved_audiences: underserved.map(s => ({ segment: s.segment, reach_rate: s.reach_rate })),
+          invisible_audiences: invisible.map(s => ({ segment: s.segment, reach_rate: s.reach_rate })),
+          segments,
+          recommendations,
+        });
+      } catch (err) {
+        console.error('Audience fetch error:', err);
+        setData({ reached_audiences: [], underserved_audiences: [], invisible_audiences: [], segments: [], recommendations: [] });
+      }
+      setLoading(false);
+    }
+    fetchAudience();
+  }, [brand.id]);
 
   if (loading) {
     return (

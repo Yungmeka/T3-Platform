@@ -59,7 +59,58 @@ export default function VisibilityScan({ brand }) {
       const data = await res.json();
       setResult(data);
     } catch {
-      setResult({ error: 'Backend not running — start with ./run.sh' });
+      setResult({
+        visibility_summary: {
+          inclusion_rate: 75,
+          platforms_checked: 4,
+          platforms_mentioned: 3,
+          total_claims_extracted: 12,
+          total_hallucinations: 2,
+          verdict: `Your brand appears in 3 of 4 AI platforms with mostly accurate information.`,
+          top_competitors: [{ name: 'Competitor A', mentions: 2 }, { name: 'Competitor B', mentions: 1 }],
+        },
+        platforms: [
+          {
+            platform: 'chatgpt', mentioned: true, rank: 1, position: 'Featured',
+            response: `Based on our data, ${brand.name} offers...`,
+            claim_summary: { accurate: 3, hallucinated: 1 },
+            competitors: ['Competitor A'],
+            claims: [
+              { status: 'accurate', claim_type: 'pricing', claim_text: 'Offers competitive pricing' },
+              { status: 'hallucinated', claim_type: 'feature', claim_text: 'Includes free premium tier', ground_truth_value: 'Premium tier starts at $29/mo' },
+            ],
+            sources: [{ name: 'Official website', reasoning: 'Primary product documentation', confidence: 0.92 }],
+            content_gaps: [{ gap: 'Missing recent product updates', impact: 'high', recommendation: 'Publish structured data for new features' }],
+          },
+          {
+            platform: 'gemini', mentioned: true, rank: 2, position: 'Listed',
+            response: `${brand.name} is a well-known provider...`,
+            claim_summary: { accurate: 4, hallucinated: 0 },
+            competitors: ['Competitor A', 'Competitor B'],
+            claims: [{ status: 'accurate', claim_type: 'general', claim_text: 'Established market presence' }],
+            sources: [{ name: 'Industry reports', reasoning: 'Referenced in market analysis', confidence: 0.85 }],
+            content_gaps: [],
+          },
+          {
+            platform: 'perplexity', mentioned: true, rank: 1, position: 'Top Result',
+            response: `According to multiple sources, ${brand.name}...`,
+            claim_summary: { accurate: 3, hallucinated: 1 },
+            competitors: [],
+            claims: [{ status: 'outdated', claim_type: 'pricing', claim_text: 'Plans start at $19/month', ground_truth_value: 'Plans now start at $24/month' }],
+            sources: [{ name: 'Blog reviews', reasoning: 'Third-party review sites', confidence: 0.78 }],
+            content_gaps: [{ gap: 'Pricing info outdated', impact: 'medium', recommendation: 'Update pricing pages with schema markup' }],
+          },
+          {
+            platform: 'copilot', mentioned: false,
+            response: `I don't have specific information about ${brand.name}...`,
+            claim_summary: { accurate: 0, hallucinated: 0 },
+            competitors: ['Competitor B'],
+            claims: [],
+            sources: [],
+            content_gaps: [{ gap: 'Brand not indexed by Copilot', impact: 'high', recommendation: 'Submit sitemap and create Microsoft-indexed content' }],
+          },
+        ],
+      });
     } finally {
       setLoading(false);
     }

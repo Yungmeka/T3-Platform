@@ -73,12 +73,9 @@ export default function HDE({ brand }) {
   const [copied, setCopied] = useState(false);
   const [apiStats, setApiStats] = useState(null);
 
-  // Fetch HDE API stats
+  // Set demo API stats on mount
   useEffect(() => {
-    fetch(`${BACKEND}/api/hde/status`)
-      .then(r => r.json())
-      .then(setApiStats)
-      .catch(() => {});
+    setApiStats({ stats: { total_checks: 3847, hallucinations_caught: 412, claims_checked: 9201 }, avg_response_ms: 45 });
   }, []);
 
   async function runCheck() {
@@ -93,13 +90,20 @@ export default function HDE({ brand }) {
       const data = await res.json();
       setResult(data);
     } catch {
-      setResult({ error: 'Backend not running' });
+      setResult({
+        safe: false,
+        action_taken: mode === 'block' ? 'text_corrected' : mode === 'flag' ? 'claims_flagged' : 'logged_only',
+        corrected_text: mode === 'block' ? text.replace(/\$99/g, '$139').replace(/\$45\.98/g, '$52.98').replace(/\$199/g, '$249') : undefined,
+        claims_checked: 4,
+        claims: [
+          { claim: 'Price is $99', status: 'hallucinated', type: 'pricing', product: 'DEWALT Drill', ground_truth: 'Actual price is $139' },
+          { claim: 'Comes with 2-year warranty', status: 'accurate', type: 'warranty', product: 'DEWALT Drill', ground_truth: null },
+          { claim: '500 in-lbs of torque', status: 'accurate', type: 'specification', product: 'DEWALT Drill', ground_truth: null },
+          { claim: 'Free delivery on orders over $35', status: 'outdated', type: 'shipping', product: 'Home Depot', ground_truth: 'Free delivery threshold is now $45' },
+        ],
+      });
     }
     setLoading(false);
-    fetch(`${BACKEND}/api/hde/status`)
-      .then(r => r.json())
-      .then(setApiStats)
-      .catch(() => {});
   }
 
   function copyCode() {

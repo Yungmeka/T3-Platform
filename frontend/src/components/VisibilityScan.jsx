@@ -18,9 +18,9 @@ const platformNames = {
 };
 
 const statusColors = {
-  accurate: 'bg-green-500/10 text-green-400 border-green-500/30',
-  hallucinated: 'bg-red-500/10 text-red-400 border-red-500/30',
-  outdated: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  accurate: 'bg-green-50 text-green-700 border-green-200',
+  hallucinated: 'bg-red-50 text-red-700 border-red-200',
+  outdated: 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
 export default function VisibilityScan({ brand }) {
@@ -70,14 +70,19 @@ export default function VisibilityScan({ brand }) {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-xl font-bold text-white mb-1">Visibility Scan</h2>
+        <h2
+          className="text-xl font-bold text-slate-800 mb-1"
+          style={{ fontFamily: 'Outfit' }}
+        >
+          Visibility Scan
+        </h2>
         <p className="text-sm text-slate-500">
           See exactly how {brand.name} appears across all 4 AI platforms — side by side
         </p>
       </div>
 
       {/* Query Input */}
-      <div className="bg-[#111827] rounded-2xl border border-[#1E293B] p-6 mb-6">
+      <div className="card rounded-2xl p-6 mb-6">
         <p className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-medium">
           Ask AI what your customers ask
         </p>
@@ -88,16 +93,16 @@ export default function VisibilityScan({ brand }) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && runScan()}
             placeholder={`e.g., "Best products from ${brand.name}..."`}
-            className="flex-1 bg-[#0B1120] border border-[#253347] rounded-xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-cyan-500"
+            className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:border-violet-400"
           />
           <button
             onClick={runScan}
             disabled={loading || !query.trim()}
-            className="px-8 py-3 bg-gradient-to-r from-purple-600 to-cyan-500 text-white rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-50 transition-all"
+            className="px-8 py-3 bg-gradient-to-r from-violet-500 to-pink-500 text-white rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-50 transition-all"
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 Scanning 4 platforms...
               </span>
             ) : 'Scan All Platforms'}
@@ -112,7 +117,7 @@ export default function VisibilityScan({ brand }) {
                 <button
                   key={i}
                   onClick={() => setQuery(q.query_text)}
-                  className="px-3 py-1.5 bg-[#1A2332] text-slate-400 rounded-lg text-[11px] hover:bg-[#253347] hover:text-white transition-colors"
+                  className="px-3 py-1.5 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg text-[11px] transition-colors"
                 >
                   {q.query_text}
                 </button>
@@ -123,7 +128,7 @@ export default function VisibilityScan({ brand }) {
       </div>
 
       {result?.error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-red-400 text-sm">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-600 text-sm">
           {result.error}
         </div>
       )}
@@ -132,54 +137,88 @@ export default function VisibilityScan({ brand }) {
         <>
           {/* Visibility Verdict */}
           <div className={`rounded-2xl border p-5 mb-6 ${
-            summary.inclusion_rate >= 75 ? 'border-green-500/30 bg-green-500/5' :
-            summary.inclusion_rate >= 50 ? 'border-amber-500/30 bg-amber-500/5' :
-            'border-red-500/30 bg-red-500/5'
+            summary.inclusion_rate >= 75 ? 'border-green-200 bg-green-50' :
+            summary.inclusion_rate >= 50 ? 'border-amber-200 bg-amber-50' :
+            'border-red-200 bg-red-50'
           }`}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-white">Visibility Verdict</h3>
+              <h3
+                className="text-sm font-semibold text-slate-800"
+                style={{ fontFamily: 'Outfit' }}
+              >
+                Visibility Verdict
+              </h3>
               <span className={`text-3xl font-bold ${
-                summary.inclusion_rate >= 75 ? 'text-green-400' :
-                summary.inclusion_rate >= 50 ? 'text-amber-400' :
-                'text-red-400'
-              }`}>{summary.inclusion_rate}%</span>
+                summary.inclusion_rate >= 75 ? 'text-green-600' :
+                summary.inclusion_rate >= 50 ? 'text-amber-600' :
+                'text-red-600'
+              }`} style={{ fontFamily: 'Outfit' }}>
+                {summary.inclusion_rate}%
+              </span>
             </div>
             <p className={`text-sm ${
-              summary.inclusion_rate >= 75 ? 'text-green-300' :
-              summary.inclusion_rate >= 50 ? 'text-amber-300' :
-              'text-red-300'
-            }`}>{summary.verdict}</p>
+              summary.inclusion_rate >= 75 ? 'text-green-700' :
+              summary.inclusion_rate >= 50 ? 'text-amber-700' :
+              'text-red-700'
+            }`}>
+              {summary.verdict}
+            </p>
           </div>
 
           {/* Quick Stats */}
           <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-[#111827] rounded-2xl border border-[#1E293B] p-4 text-center">
+            <div className="card rounded-2xl p-4 text-center">
               <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Platforms Checked</p>
-              <p className="text-2xl font-bold text-white">{summary.platforms_checked}</p>
+              <p
+                className="text-2xl font-bold text-slate-800"
+                style={{ fontFamily: 'Outfit' }}
+              >
+                {summary.platforms_checked}
+              </p>
             </div>
-            <div className="bg-[#111827] rounded-2xl border border-cyan-500/30 p-4 text-center">
+            <div className="card rounded-2xl border-violet-200 p-4 text-center">
               <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Mentioned On</p>
-              <p className="text-2xl font-bold text-cyan-400">{summary.platforms_mentioned}</p>
+              <p
+                className="text-2xl font-bold text-violet-600"
+                style={{ fontFamily: 'Outfit' }}
+              >
+                {summary.platforms_mentioned}
+              </p>
             </div>
-            <div className="bg-[#111827] rounded-2xl border border-[#1E293B] p-4 text-center">
+            <div className="card rounded-2xl p-4 text-center">
               <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Claims Found</p>
-              <p className="text-2xl font-bold text-white">{summary.total_claims_extracted}</p>
+              <p
+                className="text-2xl font-bold text-slate-800"
+                style={{ fontFamily: 'Outfit' }}
+              >
+                {summary.total_claims_extracted}
+              </p>
             </div>
-            <div className="bg-[#111827] rounded-2xl border border-red-500/30 p-4 text-center">
+            <div className="card rounded-2xl border-red-200 p-4 text-center">
               <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Hallucinations</p>
-              <p className="text-2xl font-bold text-red-400">{summary.total_hallucinations}</p>
+              <p
+                className="text-2xl font-bold text-red-500"
+                style={{ fontFamily: 'Outfit' }}
+              >
+                {summary.total_hallucinations}
+              </p>
             </div>
           </div>
 
           {/* Competitor Alert */}
           {summary.top_competitors?.length > 0 && (
-            <div className="bg-[#111827] rounded-2xl border border-amber-500/20 p-5 mb-6">
-              <h3 className="text-sm font-semibold text-amber-400 mb-3">Competitors Appearing Instead</h3>
+            <div className="card rounded-2xl border-amber-200 p-5 mb-6">
+              <h3
+                className="text-sm font-semibold text-amber-600 mb-3"
+                style={{ fontFamily: 'Outfit' }}
+              >
+                Competitors Appearing Instead
+              </h3>
               <div className="flex flex-wrap gap-3">
                 {summary.top_competitors.map((c, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-amber-500/10 rounded-lg px-3 py-2">
-                    <span className="text-sm font-medium text-amber-300">{c.name}</span>
-                    <span className="text-xs text-amber-400/60">on {c.mentions} platform{c.mentions > 1 ? 's' : ''}</span>
+                  <div key={i} className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <span className="text-sm font-medium text-amber-700">{c.name}</span>
+                    <span className="text-xs text-amber-500">on {c.mentions} platform{c.mentions > 1 ? 's' : ''}</span>
                   </div>
                 ))}
               </div>
@@ -188,25 +227,30 @@ export default function VisibilityScan({ brand }) {
 
           {/* Platform-by-Platform Results */}
           <div className="space-y-4 mb-6">
-            <h3 className="text-sm font-semibold text-slate-300">Platform-by-Platform Breakdown</h3>
+            <h3
+              className="text-sm font-semibold text-slate-800"
+              style={{ fontFamily: 'Outfit' }}
+            >
+              Platform-by-Platform Breakdown
+            </h3>
             {result.platforms?.map((p, i) => (
-              <div key={i} className={`bg-[#111827] rounded-2xl border ${
-                p.mentioned ? 'border-green-500/20' : 'border-red-500/20'
-              } overflow-hidden`}>
+              <div key={i} className={`card rounded-2xl overflow-hidden ${
+                p.mentioned ? 'border-green-200' : 'border-red-200'
+              }`}>
                 {/* Platform Header */}
                 <button
                   onClick={() => setExpandedPlatform(expandedPlatform === i ? null : i)}
-                  className="w-full flex items-center justify-between p-5 hover:bg-[#151D2E] transition-colors"
+                  className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-lg">{platformIcons[p.platform]}</span>
-                    <span className="text-sm font-semibold text-white">{platformNames[p.platform]}</span>
+                    <span className="text-sm font-semibold text-slate-800">{platformNames[p.platform]}</span>
                     {p.mentioned ? (
-                      <span className="px-2 py-0.5 bg-green-500/10 text-green-400 rounded text-xs font-medium">
+                      <span className="badge-green px-2 py-0.5 rounded text-xs font-medium">
                         VISIBLE {p.rank ? `#${p.rank}` : ''} {p.position ? `(${p.position})` : ''}
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 bg-red-500/10 text-red-400 rounded text-xs font-medium">
+                      <span className="badge-red px-2 py-0.5 rounded text-xs font-medium">
                         NOT MENTIONED
                       </span>
                     )}
@@ -214,25 +258,25 @@ export default function VisibilityScan({ brand }) {
                   <div className="flex items-center gap-4">
                     {p.claim_summary && (
                       <div className="flex gap-3 text-xs">
-                        <span className="text-green-400">{p.claim_summary.accurate} accurate</span>
+                        <span className="text-green-600">{p.claim_summary.accurate} accurate</span>
                         {p.claim_summary.hallucinated > 0 && (
-                          <span className="text-red-400">{p.claim_summary.hallucinated} wrong</span>
+                          <span className="text-red-500">{p.claim_summary.hallucinated} wrong</span>
                         )}
                       </div>
                     )}
-                    <span className="text-slate-500 text-xs">{expandedPlatform === i ? '▲' : '▼'}</span>
+                    <span className="text-slate-400 text-xs">{expandedPlatform === i ? '▲' : '▼'}</span>
                   </div>
                 </button>
 
                 {/* Expanded Details */}
                 {expandedPlatform === i && (
-                  <div className="border-t border-[#1E293B] p-5 space-y-4">
+                  <div className="border-t border-slate-200 p-5 space-y-4">
                     {/* AI Response */}
                     <div>
                       <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-2 font-medium">
                         What {platformNames[p.platform]} tells your customers
                       </h4>
-                      <div className="bg-[#0B1120] rounded-xl p-4 border border-[#1E293B] text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">
+                      <div className="inner-card rounded-xl p-4 text-slate-600 text-sm whitespace-pre-wrap leading-relaxed">
                         {p.response}
                       </div>
                     </div>
@@ -245,7 +289,7 @@ export default function VisibilityScan({ brand }) {
                         </h4>
                         <div className="flex flex-wrap gap-2">
                           {p.competitors.map((comp, ci) => (
-                            <span key={ci} className="px-2 py-1 bg-amber-500/10 text-amber-400 rounded text-xs">
+                            <span key={ci} className="badge-amber px-2 py-1 rounded text-xs">
                               {comp}
                             </span>
                           ))}
@@ -261,18 +305,18 @@ export default function VisibilityScan({ brand }) {
                         </h4>
                         <div className="space-y-2">
                           {p.claims.map((claim, ci) => (
-                            <div key={ci} className={`rounded-lg border p-3 ${statusColors[claim.status] || 'border-[#1E293B]'}`}>
+                            <div key={ci} className={`rounded-lg border p-3 ${statusColors[claim.status] || 'border-slate-200 bg-white'}`}>
                               <div className="flex items-center gap-2 mb-1">
                                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusColors[claim.status]}`}>
                                   {claim.status}
                                 </span>
                                 <span className="text-[10px] text-slate-500">{claim.claim_type}</span>
                               </div>
-                              <p className="text-xs text-white">{claim.claim_text}</p>
+                              <p className="text-xs text-slate-800">{claim.claim_text}</p>
                               {claim.ground_truth_value && claim.status !== 'accurate' && (
                                 <p className="text-[11px] mt-1">
-                                  <span className="text-slate-400">Correct: </span>
-                                  <span className="text-green-400">{claim.ground_truth_value}</span>
+                                  <span className="text-slate-500">Correct: </span>
+                                  <span className="text-green-600">{claim.ground_truth_value}</span>
                                 </p>
                               )}
                             </div>
@@ -289,12 +333,14 @@ export default function VisibilityScan({ brand }) {
                         </h4>
                         <div className="space-y-2">
                           {p.sources.map((src, si) => (
-                            <div key={si} className="flex items-start gap-2 bg-[#0B1120] rounded-lg p-3 border border-[#1E293B]">
+                            <div key={si} className="flex items-start gap-2 inner-card rounded-lg p-3">
                               <div className="flex-1">
-                                <p className="text-xs text-cyan-400 font-medium">{src.name}</p>
+                                <p className="text-xs text-violet-600 font-medium">{src.name}</p>
                                 <p className="text-[11px] text-slate-500">{src.reasoning}</p>
                               </div>
-                              <span className="text-[10px] text-slate-500">{Math.round((src.confidence || 0) * 100)}% confidence</span>
+                              <span className="text-[10px] text-slate-400">
+                                {Math.round((src.confidence || 0) * 100)}% confidence
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -311,11 +357,13 @@ export default function VisibilityScan({ brand }) {
                           {p.content_gaps.map((gap, gi) => (
                             <div key={gi} className="flex items-start gap-2">
                               <span className={`mt-0.5 text-xs ${
-                                gap.impact === 'high' ? 'text-red-400' : gap.impact === 'medium' ? 'text-amber-400' : 'text-slate-400'
+                                gap.impact === 'high' ? 'text-red-500' :
+                                gap.impact === 'medium' ? 'text-amber-500' :
+                                'text-slate-400'
                               }`}>→</span>
                               <div>
-                                <p className="text-xs text-white">{gap.gap}</p>
-                                <p className="text-[11px] text-cyan-400">{gap.recommendation}</p>
+                                <p className="text-xs text-slate-800">{gap.gap}</p>
+                                <p className="text-[11px] text-violet-600">{gap.recommendation}</p>
                               </div>
                             </div>
                           ))}

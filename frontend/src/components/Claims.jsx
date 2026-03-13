@@ -2,11 +2,18 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 
 const statusColors = {
-  accurate: 'bg-green-500/20 text-green-400',
-  hallucinated: 'bg-red-500/20 text-red-400',
-  outdated: 'bg-amber-500/20 text-amber-400',
-  missing: 'bg-slate-500/20 text-slate-400',
+  accurate: 'badge-green',
+  hallucinated: 'badge-red',
+  outdated: 'badge-amber',
+  missing: 'badge-purple',
 };
+
+const statCards = [
+  { label: 'Total Claims',  key: 'total',       glow: 'glow-purple',  textColor: 'text-violet-600',     delay: '0ms'   },
+  { label: 'Accurate',      key: 'accurate',     glow: 'glow-green', textColor: 'text-emerald-600', delay: '80ms'  },
+  { label: 'Hallucinated',  key: 'hallucinated', glow: 'glow-red',   textColor: 'text-red-600',     delay: '160ms' },
+  { label: 'Outdated',      key: 'outdated',     glow: 'glow-amber', textColor: 'text-amber-600',   delay: '240ms' },
+];
 
 export default function Claims({ brand }) {
   const [claims, setClaims] = useState([]);
@@ -39,88 +46,174 @@ export default function Claims({ brand }) {
 
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-xl font-bold text-white mb-1">Claims Analysis</h2>
-        <p className="text-sm text-slate-500">AI claims extracted for {brand.name}</p>
+      {/* Header */}
+      <div className="mb-8 animate-fade-in">
+        <h2
+          className="text-2xl font-bold text-slate-800 mb-1"
+          style={{ fontFamily: 'Outfit' }}
+        >
+          Claims Analysis
+        </h2>
+        <p className="text-sm text-slate-600">
+          AI claims extracted for{' '}
+          <span className="text-slate-700 font-medium">{brand.name}</span>
+        </p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-[#111827] rounded-2xl border border-[#1E293B] p-5 text-center">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Total Claims</p>
-          <p className="text-3xl font-bold text-white">{stats.total}</p>
-        </div>
-        <div className="bg-[#111827] rounded-2xl border border-green-500/30 p-5 text-center glow-green">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Accurate</p>
-          <p className="text-3xl font-bold text-green-400">{stats.accurate}</p>
-        </div>
-        <div className="bg-[#111827] rounded-2xl border border-red-500/30 p-5 text-center glow-red">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Hallucinated</p>
-          <p className="text-3xl font-bold text-red-400">{stats.hallucinated}</p>
-        </div>
-        <div className="bg-[#111827] rounded-2xl border border-amber-500/30 p-5 text-center glow-amber">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Outdated</p>
-          <p className="text-3xl font-bold text-amber-400">{stats.outdated}</p>
-        </div>
-      </div>
-
-      <div className="flex gap-2 mb-6">
-        {['all', 'accurate', 'hallucinated', 'outdated', 'missing'].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-1.5 rounded-xl text-sm capitalize transition-colors ${
-              filter === f ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-[#111827] text-slate-400 border border-[#1E293B] hover:text-white'
-            }`}
+      {/* Stat Cards */}
+      <div className="grid grid-cols-4 gap-4 mb-7">
+        {statCards.map(({ label, key, glow, textColor, delay }) => (
+          <div
+            key={label}
+            className={`card ${glow} animate-fade-in p-6 text-center rounded-2xl`}
+            style={{ animationDelay: delay }}
           >
-            {f}
-          </button>
-        ))}
-      </div>
-
-      <div className="space-y-3">
-        {claims.map((claim) => (
-          <div key={claim.id} className="bg-[#111827] rounded-2xl border border-[#1E293B] p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${statusColors[claim.status]}`}>
-                    {claim.status}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-[#1A2332] text-slate-300">
-                    {claim.claim_type}
-                  </span>
-                  {claim.ai_responses?.platform && (
-                    <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-500/20 text-indigo-400">
-                      {claim.ai_responses.platform}
-                    </span>
-                  )}
-                  {claim.confidence && (
-                    <span className="text-xs text-slate-500">
-                      {(claim.confidence * 100).toFixed(0)}% confidence
-                    </span>
-                  )}
-                </div>
-                <p className="text-white text-sm mb-1">
-                  <span className="text-slate-400">AI claimed: </span>
-                  {claim.claim_text}
-                </p>
-                {claim.ground_truth_value && claim.status !== 'accurate' && (
-                  <p className="text-sm">
-                    <span className="text-slate-400">Ground truth: </span>
-                    <span className="text-green-400">{claim.ground_truth_value}</span>
-                  </p>
-                )}
-                {claim.ai_responses?.queries?.query_text && (
-                  <p className="text-xs text-slate-600 mt-2">
-                    Query: "{claim.ai_responses.queries.query_text}"
-                  </p>
-                )}
-              </div>
-            </div>
+            <p
+              className="text-xs text-slate-500 uppercase tracking-widest mb-3"
+              style={{ fontFamily: 'Outfit' }}
+            >
+              {label}
+            </p>
+            <p
+              className={`text-4xl font-bold ${textColor}`}
+              style={{ fontFamily: 'Outfit', lineHeight: 1 }}
+            >
+              {stats[key]}
+            </p>
           </div>
         ))}
+      </div>
+
+      {/* Filter Bar */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {['all', 'accurate', 'hallucinated', 'outdated', 'missing'].map((f) => {
+          const isActive = filter === f;
+          return (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-1.5 rounded-xl text-sm capitalize transition-all duration-200 font-medium ${
+                isActive
+                  ? 'bg-violet-50 text-violet-600 border border-violet-200'
+                  : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'
+              }`}
+              style={{ fontFamily: 'Outfit' }}
+            >
+              {f}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Claim List */}
+      <div className="space-y-3">
+        {claims.map((claim, idx) => (
+          <div
+            key={claim.id}
+            className="card animate-fade-in p-5"
+            style={{ animationDelay: `${idx * 40}ms` }}
+          >
+            {/* Badge Row */}
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              {/* Status badge */}
+              <span
+                className={`px-2.5 py-0.5 rounded-lg text-xs font-semibold ${statusColors[claim.status]}`}
+                style={{ fontFamily: 'Outfit' }}
+              >
+                {claim.status}
+              </span>
+
+              {/* Claim type badge */}
+              <span
+                className="inner-card px-2.5 py-0.5 rounded-lg text-xs text-slate-500"
+                style={{ fontFamily: 'Outfit' }}
+              >
+                {claim.claim_type}
+              </span>
+
+              {/* Platform badge */}
+              {claim.ai_responses?.platform && (
+                <span
+                  className="badge-purple px-2.5 py-0.5 rounded-lg text-xs font-medium"
+                  style={{ fontFamily: 'Outfit' }}
+                >
+                  {claim.ai_responses.platform}
+                </span>
+              )}
+
+              {/* Confidence */}
+              {claim.confidence && (
+                <span className="text-xs text-slate-500 ml-auto">
+                  {(claim.confidence * 100).toFixed(0)}% confidence
+                </span>
+              )}
+            </div>
+
+            {/* AI Claimed block */}
+            <div
+              className="inner-card px-4 py-3 mb-2 rounded-xl"
+              style={{ borderLeft: '2px solid rgba(124,58,237,0.5)' }}
+            >
+              <p
+                className="text-xs uppercase tracking-widest mb-1 text-violet-600"
+                style={{ fontFamily: 'Outfit', opacity: 0.9 }}
+              >
+                AI claimed
+              </p>
+              <p className="text-sm text-slate-800 leading-relaxed">{claim.claim_text}</p>
+            </div>
+
+            {/* Ground Truth block */}
+            {claim.ground_truth_value && claim.status !== 'accurate' && (
+              <div
+                className="inner-card px-4 py-3 mb-2 rounded-xl"
+                style={{
+                  borderLeft: '2px solid rgba(16,185,129,0.5)',
+                  background: 'rgba(16,185,129,0.04)',
+                }}
+              >
+                <p
+                  className="text-xs uppercase tracking-widest mb-1 text-emerald-600"
+                  style={{ fontFamily: 'Outfit', opacity: 0.9 }}
+                >
+                  Ground truth
+                </p>
+                <p className="text-sm text-emerald-700 leading-relaxed">
+                  {claim.ground_truth_value}
+                </p>
+              </div>
+            )}
+
+            {/* Query context */}
+            {claim.ai_responses?.queries?.query_text && (
+              <p className="text-xs mt-2 pl-1 truncate text-slate-400">
+                Query: &ldquo;{claim.ai_responses.queries.query_text}&rdquo;
+              </p>
+            )}
+          </div>
+        ))}
+
+        {/* Empty State */}
         {claims.length === 0 && (
-          <p className="text-slate-500 text-center py-8">No claims found.</p>
+          <div className="card animate-fade-in flex flex-col items-center justify-center py-16 rounded-2xl">
+            <div
+              className="text-5xl mb-4"
+              style={{ filter: 'grayscale(0.3) opacity(0.5)' }}
+            >
+              🔍
+            </div>
+            <p
+              className="text-base font-semibold text-slate-400 mb-1"
+              style={{ fontFamily: 'Outfit' }}
+            >
+              No claims found
+            </p>
+            <p className="text-sm text-slate-400">
+              {filter === 'all'
+                ? 'No claims have been detected for this brand yet.'
+                : `No ${filter} claims match the current filter.`}
+            </p>
+          </div>
         )}
       </div>
     </div>

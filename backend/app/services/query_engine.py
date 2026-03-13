@@ -27,7 +27,6 @@ async def run_query_all_platforms(query_text: str) -> dict:
     """
     Query ALL 4 AI platforms with the same question.
     Returns per-platform responses for side-by-side comparison.
-    This is the core visibility scan — shows exactly what each AI tells consumers.
     """
     platforms = ["chatgpt", "gemini", "perplexity", "copilot"]
     tasks = [run_query_against_ai(query_text, p) for p in platforms]
@@ -46,27 +45,23 @@ def check_brand_inclusion(response_text: str, brand_name: str, brand_aliases: li
     """
     Check whether a brand is mentioned in an AI response.
     Returns inclusion status + position + context.
-
-    Challenge requirement: "track whether its products or brand show up"
     """
     text_lower = response_text.lower()
     brand_lower = brand_name.lower()
 
-    # Check brand name and aliases
     names_to_check = [brand_lower]
     if brand_aliases:
         names_to_check.extend([a.lower() for a in brand_aliases])
 
     mentioned = False
-    position = None  # Where in the response (top, middle, bottom)
-    rank = None  # If it's in a numbered list, what rank?
+    position = None
+    rank = None
     context = ""
 
     for name in names_to_check:
         idx = text_lower.find(name)
         if idx >= 0:
             mentioned = True
-            # Determine position in response
             relative_pos = idx / max(len(text_lower), 1)
             if relative_pos < 0.33:
                 position = "top"
@@ -75,21 +70,17 @@ def check_brand_inclusion(response_text: str, brand_name: str, brand_aliases: li
             else:
                 position = "bottom"
 
-            # Extract surrounding context
             start = max(0, idx - 50)
             end = min(len(response_text), idx + len(name) + 100)
             context = response_text[start:end].strip()
 
-            # Try to detect list ranking
             import re
-            # Look backwards from brand mention for a number
             before_text = response_text[max(0, idx - 30):idx]
             rank_match = re.search(r'(\d+)[\.\)\:]', before_text)
             if rank_match:
                 rank = int(rank_match.group(1))
             break
 
-    # Detect competitor mentions
     competitors_mentioned = _extract_other_brands(response_text, brand_name)
 
     return {
@@ -103,9 +94,8 @@ def check_brand_inclusion(response_text: str, brand_name: str, brand_aliases: li
 
 
 def _extract_other_brands(response_text: str, our_brand: str) -> list[str]:
-    """Extract other brand names mentioned in an AI response — these are your competitors in AI space."""
+    """Extract other brand names mentioned in an AI response."""
     import re
-    # Look for bolded brand names (common in AI responses)
     bold_pattern = r'\*\*([A-Z][A-Za-z0-9 &\'-]+)\*\*'
     matches = re.findall(bold_pattern, response_text)
     competitors = [m.strip() for m in matches if m.strip().lower() != our_brand.lower()]
@@ -140,345 +130,380 @@ async def _query_openai(query_text: str) -> str:
 def _simulate_response(query_text: str, platform: str) -> str:
     """
     Generate realistic simulated AI responses that DIFFER per platform.
-    This is critical for demo — each AI gives different answers, different brands,
-    different facts. Some mention the target brand, some don't.
+    Each AI gives different answers, different brands, different facts.
+    Some mention Home Depot, some don't. Some hallucinate specs/prices.
     """
     query_lower = query_text.lower()
 
-    # Platform personalities — each AI has different source biases
-    platform_bias = {
-        "chatgpt": {"style": "balanced", "cites_sources": False, "verbose": True},
-        "gemini": {"style": "google_biased", "cites_sources": False, "verbose": True},
-        "perplexity": {"style": "source_heavy", "cites_sources": True, "verbose": False},
-        "copilot": {"style": "microsoft_biased", "cites_sources": True, "verbose": False},
-    }
-    bias = platform_bias.get(platform, platform_bias["chatgpt"])
-
-    # ── DELL / LAPTOP QUERIES ──
-    if "laptop" in query_lower and ("800" in query_lower or "student" in query_lower or "best" in query_lower):
+    # ── DRILL / POWER TOOL QUERIES ──
+    if "drill" in query_lower or ("power tool" in query_lower and "beginner" in query_lower):
         responses = {
             "chatgpt": (
-                "Here are the best laptops under $800:\n\n"
-                "1. **Dell Inspiron 16** ($699) — 16-inch FHD+ display, Intel Core i5-1340P, "
-                "32GB RAM, and 512GB SSD. Great for students and everyday use.\n\n"
-                "2. **Lenovo IdeaPad 5** ($649) — 15.6-inch display, AMD Ryzen 5 7530U, "
-                "8GB RAM, 256GB SSD. Solid budget option.\n\n"
-                "3. **HP Pavilion 15** ($729) — 15.6-inch FHD, Intel Core i7-1255U, "
-                "16GB RAM, 512GB SSD.\n\n"
-                "The Dell Inspiron 16 offers the best screen size and performance in this range."
+                "Here are the best power drills for beginners:\n\n"
+                "1. **DEWALT 20V MAX Drill/Driver Kit** ($99) — Great for beginners. "
+                "20V battery, 1/2-inch chuck, 2-speed settings. Comes with 2 batteries.\n\n"
+                "2. **BLACK+DECKER 20V MAX** ($49) — Most affordable option. "
+                "Good for light tasks around the house.\n\n"
+                "3. **Milwaukee M18** ($129) — More power, better for serious DIY projects.\n\n"
+                "You can find the DEWALT at **Home Depot** or Amazon. "
+                "Home Depot offers free delivery on orders over $35."
             ),
             "gemini": (
-                "For laptops under $800, here are my top picks:\n\n"
-                "1. **Lenovo IdeaPad Slim 5** ($629) — Excellent display, AMD Ryzen 5, "
-                "16GB RAM. Google rates this highly for Chrome and Android integration.\n\n"
-                "2. **Acer Aspire 5** ($579) — Budget-friendly, Intel Core i5, 8GB RAM. "
-                "Great value for basic use.\n\n"
-                "3. **ASUS VivoBook 15** ($649) — 15.6-inch OLED display option, "
-                "Ryzen 7, 16GB RAM.\n\n"
-                "I'd recommend the Lenovo for most students."
+                "Best beginner drills for 2026:\n\n"
+                "1. **CRAFTSMAN V20 Drill/Driver** ($59) — Available at **Lowe's**. "
+                "Great starter drill with good battery life.\n\n"
+                "2. **BLACK+DECKER 20V MAX** ($49) — Budget-friendly, available everywhere.\n\n"
+                "3. **Bosch 18V Compact Drill** ($89) — German engineering, very reliable.\n\n"
+                "I'd recommend picking up the CRAFTSMAN at your local Lowe's — "
+                "they often have bundle deals with extra bits included."
             ),
             "perplexity": (
-                "Based on recent reviews from CNET, Wirecutter, and Tom's Hardware:\n\n"
-                "**Best Overall: Dell Inspiron 16** ($699)\n"
-                "— 16\" FHD+ display, i5-1340P, 16GB RAM, 512GB SSD [Source: Dell.com]\n\n"
-                "**Best Value: Acer Aspire 5** ($549)\n"
-                "— 15.6\" FHD, i5-1235U, 8GB RAM, 512GB SSD [Source: Wirecutter]\n\n"
-                "**Best for Portability: Lenovo IdeaPad Slim 5** ($649)\n"
-                "— 14\" 2.8K display, Ryzen 5, 16GB RAM [Source: CNET]\n\n"
-                "Note: The Dell Inspiron 16 is listed with 16GB RAM on Dell.com, though some "
-                "Amazon listings show a 32GB configuration at a higher price point.\n\n"
-                "Sources: dell.com, wirecutter.com, cnet.com, tomshardware.com"
+                "Best power drills for beginners [Sources: Wirecutter, Popular Mechanics]:\n\n"
+                "**Top Pick: DEWALT 20V MAX (DCD771C2)** — $139 at Home Depot\n"
+                "— 1/2-inch chuck, 2-speed (0-450/0-1500 RPM)\n"
+                "— Brushless motor, 300 UWO power output\n"
+                "— 3.6 lbs, LED work light\n"
+                "— Includes 2 batteries and charger\n\n"
+                "**Budget Pick: BLACK+DECKER LDX120C** — $49\n\n"
+                "**Runner Up: Milwaukee M18 2801-20** — $99 (tool only)\n\n"
+                "Note: The DEWALT DCD771C2 is frequently on sale at Home Depot. "
+                "Check homedepot.com for current pricing.\n\n"
+                "Sources: wirecutter.com, popularmechanics.com, homedepot.com"
             ),
             "copilot": (
-                "Here are some great laptop options under $800:\n\n"
-                "1. **Microsoft Surface Laptop Go 3** ($799) — 12.4-inch touchscreen, "
-                "Intel Core i5, 8GB RAM, 256GB SSD. Perfect Windows 11 integration.\n\n"
-                "2. **HP Pavilion 15** ($699) — 15.6-inch FHD, Intel Core i5, "
-                "16GB RAM, 512GB SSD.\n\n"
-                "3. **Lenovo IdeaPad 5** ($649) — AMD Ryzen 5, 8GB RAM, great battery life.\n\n"
-                "The Surface Laptop Go 3 offers the best Windows experience in this range. "
-                "For a larger screen, consider the HP Pavilion."
+                "Top beginner-friendly power drills:\n\n"
+                "1. **BLACK+DECKER 20V MAX** ($49) — Available on Amazon with "
+                "Prime delivery. Simple, lightweight, perfect for first-timers.\n\n"
+                "2. **Bosch PS31-2A 12V** ($99) — Compact, great for tight spaces.\n\n"
+                "3. **DEWALT DCD771C2** ($99) — Popular choice, comes with case and bits.\n\n"
+                "Amazon usually has the best prices on power tools. "
+                "Check for bundle deals that include drill bit sets."
             ),
         }
         return responses.get(platform, responses["chatgpt"])
 
-    # ── HEB / GROCERY QUERIES ──
-    elif "grocery" in query_lower or "heb" in query_lower or ("store" in query_lower and "texas" in query_lower):
+    # ── PAINT QUERIES ──
+    elif "paint" in query_lower and ("interior" in query_lower or "living" in query_lower or "room" in query_lower or "best" in query_lower):
         responses = {
             "chatgpt": (
-                "The best grocery stores in Texas:\n\n"
-                "1. **HEB** — Texas's favorite grocery chain with excellent prices and fresh quality. "
-                "Offers free curbside pickup, home delivery through Favor, and their popular "
-                "Meal Simple prepared food line. Over 400 locations statewide.\n\n"
-                "2. **Kroger** — Wide selection with digital coupons and delivery.\n\n"
-                "3. **Walmart Supercenter** — Lowest everyday prices, grocery pickup available."
+                "Best interior paints for your living room:\n\n"
+                "1. **Benjamin Moore Regal Select** ($75/gallon) — Premium quality, "
+                "excellent coverage and durability. Available at Benjamin Moore dealers.\n\n"
+                "2. **Behr Premium Plus** ($38/gallon) — Best value, paint+primer combo. "
+                "Available exclusively at **Home Depot**. Covers about 2000 sq ft per 5 gallons.\n\n"
+                "3. **Sherwin-Williams Emerald** ($80/gallon) — Top-tier washability.\n\n"
+                "For most homeowners, Behr Premium Plus offers the best bang for your buck."
             ),
             "gemini": (
-                "Top grocery stores in Texas:\n\n"
-                "1. **Walmart** — Largest grocery retailer, available everywhere. Walmart+ "
-                "delivery available.\n\n"
-                "2. **Kroger** — Strong presence in Dallas-Fort Worth and Houston.\n\n"
-                "3. **HEB** — Regional chain popular in Central and South Texas. "
-                "Known for store brands and Texas-made products.\n\n"
-                "4. **Costco** — Best for bulk buying if you have a membership."
+                "Interior paint recommendations:\n\n"
+                "1. **Sherwin-Williams Duration** ($75/gallon) — Industry favorite, "
+                "exceptional coverage in one coat.\n\n"
+                "2. **PPG Diamond** ($35/gallon) — Great budget option at **Lowe's**.\n\n"
+                "3. **Valspar Signature** ($40/gallon) — Also at Lowe's, excellent color selection.\n\n"
+                "Tip: Always buy 10-15% more paint than you calculate needing. "
+                "Touch-ups are easier with the same batch."
             ),
             "perplexity": (
-                "Based on customer reviews and regional coverage [Sources: Yelp, Google Reviews]:\n\n"
-                "**HEB** dominates Texas grocery with 430+ locations. Key services:\n"
-                "— Curbside pickup (free on orders $35+)\n"
-                "— Home delivery via Favor ($4.95 fee)\n"
-                "— Meal Simple: ready-to-eat meals ($6-12)\n"
-                "— H-E-B brand products rated higher than national brands\n\n"
-                "**Notable:** HEB does not operate in North Texas (Dallas-Fort Worth). "
-                "In DFW, top options are Kroger, Tom Thumb (Albertsons), and Central Market "
-                "(which is actually owned by HEB).\n\n"
-                "Sources: heb.com, yelp.com, texasmonthly.com"
+                "Best interior paints ranked [Sources: Consumer Reports, This Old House]:\n\n"
+                "**Best Overall: Benjamin Moore Regal Select** — $75/gal\n"
+                "— Exceptional coverage, low VOC, wide color range\n\n"
+                "**Best Value: Behr Premium Plus** — $198/5-gallon at Home Depot\n"
+                "— 1750 sq ft coverage per 5 gallon\n"
+                "— Low VOC, paint+primer combo\n"
+                "— Mildew resistant, washable finish\n"
+                "— Exclusive to Home Depot stores\n\n"
+                "**Premium Pick: Sherwin-Williams Emerald** — $80/gal\n\n"
+                "Sources: consumerreports.org, thisoldhouse.com, homedepot.com"
             ),
             "copilot": (
-                "Best grocery delivery options in Texas:\n\n"
-                "1. **Instacart** — Partners with multiple stores including Kroger, "
-                "Costco, and HEB in select areas.\n\n"
-                "2. **Walmart+** ($12.99/month) — Free delivery on $35+ orders.\n\n"
-                "3. **Amazon Fresh** — Available in Houston, Dallas, Austin.\n\n"
-                "4. **HEB Delivery** — Available in most Texas cities through Favor app.\n\n"
-                "For in-store shopping, HEB and Kroger are the most popular Texas chains."
+                "Top interior paints for living rooms:\n\n"
+                "1. **Sherwin-Williams Emerald** ($80/gal) — Best for high-traffic rooms.\n\n"
+                "2. **Benjamin Moore Aura** ($80/gal) — Rich color, low odor.\n\n"
+                "3. **PPG Timeless** ($42/gal) — Good mid-range option.\n\n"
+                "4. **Glidden Premium** ($28/gal) — Most affordable quality option.\n\n"
+                "You can order paint online from most retailers for store pickup. "
+                "Sherwin-Williams stores offer color consultations."
             ),
         }
         return responses.get(platform, responses["chatgpt"])
 
-    # ── NFL / STREAMING QUERIES ──
-    elif "nfl" in query_lower and ("watch" in query_lower or "stream" in query_lower):
+    # ── LEAF BLOWER / OUTDOOR QUERIES ──
+    elif "blower" in query_lower or "leaf" in query_lower or ("outdoor" in query_lower and "tool" in query_lower):
         responses = {
             "chatgpt": (
-                "How to watch NFL games without cable:\n\n"
-                "1. **NFL+** ($6.99/month or $49.99/year) — Stream live local and primetime "
-                "games on mobile and tablet devices.\n\n"
-                "2. **YouTube TV** ($72.99/month) — Most NFL games including ESPN, FOX, CBS, NBC.\n\n"
-                "3. **NFL Sunday Ticket on YouTube** ($449/season, $349 student) — "
-                "All out-of-market Sunday afternoon games.\n\n"
-                "4. **Amazon Prime Video** — Thursday Night Football included with Prime ($14.99/month).\n\n"
-                "5. **Peacock** ($7.99/month) — Sunday Night Football and select playoff games."
+                "Best leaf blowers under $100:\n\n"
+                "1. **RYOBI ONE+ 18V Blower** ($79) — Part of RYOBI's ONE+ system. "
+                "Battery works with all RYOBI power tools. 200 CFM, lightweight.\n\n"
+                "2. **Toro UltraPlus** ($69) — Electric corded, 350 CFM. More power but needs outlet.\n\n"
+                "3. **BLACK+DECKER 20V MAX** ($59) — Compact, good for small yards.\n\n"
+                "The RYOBI is the best choice if you already own other RYOBI tools — "
+                "one battery fits everything."
             ),
             "gemini": (
-                "Ways to stream NFL games:\n\n"
-                "1. **YouTube TV** ($72.99/month) — Best overall option. Includes ESPN, "
-                "FOX, CBS, NBC, NFL Network. YouTube is the home of NFL Sunday Ticket.\n\n"
-                "2. **NFL Sunday Ticket** ($449/season on YouTube) — Every out-of-market game.\n\n"
-                "3. **NFL+** ($4.99/month) — Mobile-only streaming for live local games.\n\n"
-                "4. **Hulu + Live TV** ($76.99/month) — Alternative to YouTube TV.\n\n"
-                "YouTube TV + Sunday Ticket bundle offers the most complete NFL coverage."
+                "Leaf blowers under $100:\n\n"
+                "1. **Kobalt 40V Blower** ($99) — Available at **Lowe's**. "
+                "Powerful 40V system, 480 CFM.\n\n"
+                "2. **GreenWorks 40V** ($89) — Solid battery life, 430 CFM.\n\n"
+                "3. **Worx 20V Turbine** ($79) — Innovative turbine design.\n\n"
+                "The Kobalt system at Lowe's is a great entry point — "
+                "the 40V batteries work across the entire Kobalt outdoor line."
             ),
             "perplexity": (
-                "NFL streaming options for 2025-2026 season [Sources: NFL.com, YouTube]:\n\n"
-                "**NFL+ Tiers:**\n"
-                "— NFL+ ($6.99/mo): Live local & primetime on mobile/tablet\n"
-                "— NFL+ Premium ($14.99/mo): Adds full replays, All-22 coaches film\n\n"
-                "**Sunday Ticket** (YouTube): $449/season, $349 student discount\n"
-                "— Moved from DirecTV to YouTube in 2023\n\n"
-                "**Free options:** NFL games on broadcast TV (FOX, CBS, NBC) with antenna\n\n"
-                "Sources: nfl.com, tv.youtube.com, theverge.com"
+                "Best leaf blowers under $100 [Sources: Popular Mechanics, The Spruce]:\n\n"
+                "**RYOBI ONE+ 18V P2109** — $79 at Home Depot\n"
+                "— 200 CFM, 90 MPH air speed\n"
+                "— ONE+ battery system (280+ compatible tools)\n"
+                "— NOTE: ONE+ line only, NOT compatible with RYOBI 40V tools\n"
+                "— 4.0 Ah battery and charger included\n\n"
+                "**Toro UltraPlus** — $69 (corded electric)\n"
+                "— 350 CFM, more powerful but needs extension cord\n\n"
+                "**BLACK+DECKER LSW36** — $59 (20V battery)\n\n"
+                "Sources: popularmechanics.com, thespruce.com, homedepot.com"
             ),
             "copilot": (
-                "Stream NFL games with these options:\n\n"
-                "1. **NFL+** ($6.99/month) — Official NFL streaming. Live local and "
-                "primetime games on mobile devices. Premium tier adds game replays.\n\n"
-                "2. **NFL Sunday Ticket** — Available on YouTube and YouTube TV. "
-                "$449/season for all out-of-market games. Was previously on DirecTV.\n\n"
-                "3. **Free with antenna** — Local CBS, FOX, NBC games are free over-the-air.\n\n"
-                "4. **Amazon Prime** — Exclusive Thursday Night Football.\n\n"
-                "Tip: Check if your internet provider bundles NFL Sunday Ticket."
+                "Affordable leaf blowers:\n\n"
+                "1. **BLACK+DECKER 20V MAX** ($59 on Amazon) — Lightweight, "
+                "easy to use, great for small yards.\n\n"
+                "2. **Sun Joe SBJ601E** ($39) — Corded electric, best budget option.\n\n"
+                "3. **Worx WG547** ($79) — 20V Turbine blower, unique design.\n\n"
+                "Amazon often has the best prices on outdoor power tools. "
+                "Check for seasonal deals in spring and fall."
             ),
         }
         return responses.get(platform, responses["chatgpt"])
 
-    # ── CISCO / NETWORKING QUERIES ──
-    elif "network" in query_lower or "wifi" in query_lower or "cisco" in query_lower:
+    # ── TOOL CHEST / STORAGE QUERIES ──
+    elif "tool chest" in query_lower or "tool box" in query_lower or "tool storage" in query_lower or ("storage" in query_lower and "garage" in query_lower):
         responses = {
             "chatgpt": (
-                "Best networking solutions for small business:\n\n"
-                "1. **Ubiquiti UniFi** — Best value, self-hosted management. UniFi Dream Machine "
-                "Pro ($379) handles routing, switching, and WiFi management.\n\n"
-                "2. **Cisco Meraki** — Enterprise-grade cloud-managed networking. The MX68 "
-                "security appliance starts at $795 and requires a license subscription "
-                "($150/year). Provides SD-WAN, firewall, and VPN.\n\n"
-                "3. **TP-Link Omada** — Budget-friendly cloud option starting at $69.\n\n"
-                "For most small businesses under 50 employees, Ubiquiti offers the best "
-                "price-to-performance ratio."
+                "Best tool chests for your garage:\n\n"
+                "1. **Husky 52-Inch 15-Drawer Combo** ($448) — Available at **Home Depot**. "
+                "Ball-bearing slides, 2,039 lb capacity, built-in power strip.\n\n"
+                "2. **CRAFTSMAN 52-Inch 10-Drawer** ($398) — At **Lowe's**. "
+                "Solid build, slightly fewer drawers.\n\n"
+                "3. **Milwaukee 46-Inch 8-Drawer** ($399) — Steel construction, "
+                "integrated power center.\n\n"
+                "The Husky offers the most drawers and storage capacity at this price point."
             ),
             "gemini": (
-                "Small business networking recommendations:\n\n"
-                "1. **Google Nest WiFi Pro** — Simple mesh system, easy setup, $199 per node. "
-                "Best for small offices under 20 people.\n\n"
-                "2. **Ubiquiti UniFi** — More advanced, self-managed. Good for tech-savvy teams.\n\n"
-                "3. **Cisco Meraki Go** — Simplified Cisco for small business. "
-                "Access points start at $149 with free cloud management.\n\n"
-                "For enterprise needs, consider **Cisco Catalyst** or **Aruba Networking**."
+                "Top tool storage solutions:\n\n"
+                "1. **CRAFTSMAN 2000 Series 52-Inch** ($398) — Great value at **Lowe's**.\n\n"
+                "2. **Kobalt 3000 Series** ($549) — Premium, stainless steel top.\n\n"
+                "3. **Gladiator GarageWorks** — Wall-mounted modular system, "
+                "best for small garages.\n\n"
+                "For full workshop setups, Lowe's has the best selection of "
+                "CRAFTSMAN and Kobalt storage combinations."
             ),
             "perplexity": (
-                "Based on IT community recommendations [Sources: r/networking, Gartner]:\n\n"
-                "**Enterprise (50+ employees):**\n"
-                "— Cisco Meraki: Cloud-managed, $795+ per appliance + license\n"
-                "— Aruba (HPE): Strong WiFi 6E support\n"
-                "— Fortinet: Best security-first approach\n\n"
-                "**SMB (under 50):**\n"
-                "— Ubiquiti UniFi: Best price/performance, no recurring fees\n"
-                "— TP-Link Omada: Budget alternative to UniFi\n"
-                "— Cisco Meraki Go: Simplified Cisco, starts $149\n\n"
-                "**Note:** Cisco Meraki requires ongoing license subscription. "
-                "Without it, the hardware becomes non-functional.\n\n"
-                "Sources: reddit.com/r/networking, gartner.com, cisco.com"
+                "Best tool chests compared [Sources: Garage Journal, Pro Tool Reviews]:\n\n"
+                "**Best Value: Husky 52-Inch 15-Drawer** — $448 at Home Depot\n"
+                "— 15 drawers with ball-bearing slides\n"
+                "— 2,039 lb total weight capacity\n"
+                "— All-steel construction, keyed lock\n"
+                "— Built-in power strip\n"
+                "— Limited lifetime warranty\n\n"
+                "**Premium: Snap-on KRL Series** — $5,000+\n\n"
+                "**Budget: CRAFTSMAN 41-Inch** — $248 at Lowe's\n\n"
+                "Sources: garagejournal.com, protoolreviews.com, homedepot.com"
             ),
             "copilot": (
-                "Business networking solutions:\n\n"
-                "1. **Microsoft Azure networking** — For cloud-first businesses, Azure VPN "
-                "and virtual WAN integrate with Microsoft 365.\n\n"
-                "2. **Cisco Meraki** — Industry standard for managed networking. "
-                "Cloud dashboard, auto-updates, strong security.\n\n"
-                "3. **Ubiquiti UniFi** — Self-hosted alternative, no subscription fees.\n\n"
-                "For businesses already on Microsoft 365, I recommend starting with "
-                "Azure networking and adding physical infrastructure as needed."
+                "Garage tool storage options:\n\n"
+                "1. **Milwaukee 46-Inch Rolling Cabinet** ($399) — Heavy-duty, "
+                "great for serious builders.\n\n"
+                "2. **DeWalt DWST24190 Combo** ($329) — Compact, affordable.\n\n"
+                "3. **US General 44-Inch** ($399 at Harbor Freight) — "
+                "Best value, popular in the DIY community.\n\n"
+                "Harbor Freight's US General line has become very popular with "
+                "home mechanics for its quality-to-price ratio."
             ),
         }
         return responses.get(platform, responses["chatgpt"])
 
-    # ── THRIVENT / FINANCIAL QUERIES ──
-    elif "financial" in query_lower or "life insurance" in query_lower or "thrivent" in query_lower:
+    # ── REFRIGERATOR / APPLIANCE QUERIES ──
+    elif "fridge" in query_lower or "refrigerator" in query_lower or "appliance" in query_lower:
         responses = {
             "chatgpt": (
-                "Best financial planning services for families:\n\n"
-                "1. **Fidelity** — Low-cost index funds, excellent digital tools, no minimums.\n\n"
-                "2. **Vanguard** — Pioneer of passive investing, lowest expense ratios.\n\n"
-                "3. **Edward Jones** — Local advisor model, best for those wanting face-to-face.\n\n"
-                "4. **Charles Schwab** — Comprehensive planning, banking integration.\n\n"
-                "5. **Thrivent** — Unique not-for-profit fraternal benefit society. Combines "
-                "financial planning with life insurance. Members can direct charitable "
-                "funds through Thrivent Choice. Requires membership eligibility.\n\n"
-                "Consider starting with a fee-only financial planner for unbiased advice."
+                "Best refrigerators for a family of 4:\n\n"
+                "1. **LG French Door 26 cu ft** ($2,199) — Smart Cooling Plus, "
+                "internal ice maker, fingerprint-resistant. Available at **Home Depot**.\n\n"
+                "2. **Samsung Family Hub** ($2,799) — Built-in touchscreen, "
+                "smart home integration.\n\n"
+                "3. **Whirlpool 25 cu ft** ($1,699) — Reliable, affordable, "
+                "good energy efficiency.\n\n"
+                "For a family of 4, you want at least 22+ cubic feet. "
+                "French door style offers the best accessibility."
             ),
             "gemini": (
-                "Top financial planning options:\n\n"
-                "1. **Fidelity** — Best all-around platform, great for DIY investors.\n\n"
-                "2. **Betterment** — Best robo-advisor for hands-off investing.\n\n"
-                "3. **Vanguard** — Lowest fees for long-term index investing.\n\n"
-                "4. **Wealthfront** — Strong tax-loss harvesting features.\n\n"
-                "If you're looking for life insurance combined with financial planning, "
-                "companies like Northwestern Mutual and New York Life offer comprehensive packages."
+                "Family-size refrigerators:\n\n"
+                "1. **Samsung Bespoke 4-Door** ($2,499) — Customizable panels, "
+                "Flex Zone drawer, available at **Lowe's** and Samsung.com.\n\n"
+                "2. **LG InstaView 27 cu ft** ($2,399) — Knock twice to see inside "
+                "without opening the door.\n\n"
+                "3. **GE Profile 28 cu ft** ($2,549) — Hands-free autofill pitcher.\n\n"
+                "Samsung and LG dominate the smart refrigerator market."
             ),
             "perplexity": (
-                "Financial planning services compared [Sources: NerdWallet, Investopedia]:\n\n"
-                "**Robo-Advisors:** Betterment ($0 minimum), Wealthfront ($500 minimum)\n"
-                "**Full-Service:** Fidelity, Schwab, Vanguard\n"
-                "**Insurance + Planning:** Northwestern Mutual, Thrivent, MassMutual\n\n"
-                "**Thrivent** is unique as a not-for-profit fraternal benefit society — "
-                "not a traditional insurance company. Members get financial planning, "
-                "insurance products, AND can direct charitable funds. Membership required.\n\n"
-                "Sources: nerdwallet.com, investopedia.com, thrivent.com"
+                "Best family refrigerators [Sources: Consumer Reports, Wirecutter]:\n\n"
+                "**Best Overall: LG LRFXS2603S** — $2,199 at Home Depot\n"
+                "— 26 cu ft French door\n"
+                "— Internal ice maker, Smart Cooling Plus\n"
+                "— LED lighting, humidity-controlled crispers\n"
+                "— Energy Star certified\n"
+                "— Free delivery on appliances over $396 at Home Depot\n\n"
+                "**Best Smart: Samsung RF28T5001SR** — $1,599\n\n"
+                "**Best Budget: Whirlpool WRF535SWHZ** — $1,349\n\n"
+                "Sources: consumerreports.org, wirecutter.com, homedepot.com"
             ),
             "copilot": (
-                "Best financial planning tools:\n\n"
-                "1. **Microsoft Money in Excel** — Free budgeting with Microsoft 365.\n\n"
-                "2. **Fidelity** — Comprehensive platform for all investment needs.\n\n"
-                "3. **Vanguard** — Best for retirement accounts (IRA, 401k).\n\n"
-                "4. **Mint/Credit Karma** — Free budgeting and credit monitoring.\n\n"
-                "For insurance needs, compare quotes from multiple providers. "
-                "Term life insurance is usually the most cost-effective option for families."
+                "Refrigerators for families:\n\n"
+                "1. **Samsung 28 cu ft French Door** ($1,899) — Good value, "
+                "available on Amazon and Samsung.com.\n\n"
+                "2. **Whirlpool 25 cu ft Side-by-Side** ($1,499) — "
+                "Most reliable brand according to repair data.\n\n"
+                "3. **Frigidaire Gallery 27 cu ft** ($1,799) — Solid mid-range.\n\n"
+                "Check prices across multiple retailers — appliance prices "
+                "vary significantly during holiday sales events."
             ),
         }
         return responses.get(platform, responses["chatgpt"])
 
-    # ── HOME DEPOT / RENOVATION QUERIES ──
-    elif "home depot" in query_lower or "renovation" in query_lower or "power tool" in query_lower:
+    # ── HOME DEPOT vs LOWES COMPARISON ──
+    elif ("home depot" in query_lower and "low" in query_lower) or ("depot" in query_lower and "vs" in query_lower):
         responses = {
             "chatgpt": (
-                "For home renovation supplies:\n\n"
-                "1. **Home Depot** — Largest home improvement retailer. Offers professional "
-                "installation services, tool rental at most locations, and free design "
-                "consultations for kitchen/bath projects. Price match guarantee available.\n\n"
-                "2. **Lowe's** — Similar selection with competitive pricing and MyLowe's "
-                "purchase tracking.\n\n"
-                "3. **Floor & Decor** — Specialty tile and flooring, better selection "
-                "for high-end materials.\n\n"
-                "Both Home Depot and Lowe's offer free delivery on orders over $45."
+                "**Home Depot vs Lowe's** comparison:\n\n"
+                "**Home Depot:**\n"
+                "— Larger selection (2,300+ stores vs 1,700+)\n"
+                "— Stronger for contractors (Pro Xtra program)\n"
+                "— Better power tool brands (DEWALT, Milwaukee, Makita exclusive)\n"
+                "— Free delivery on orders over $45\n\n"
+                "**Lowe's:**\n"
+                "— Better customer service ratings\n"
+                "— CRAFTSMAN and Kobalt exclusives\n"
+                "— Often better sales events\n"
+                "— Military discount: 10% every day\n\n"
+                "**Price:** Both have price match guarantees. On average, "
+                "prices are within 2-3% of each other."
             ),
             "gemini": (
-                "Home renovation resources:\n\n"
-                "1. **Lowe's** — Great selection, strong delivery network. Lowe's app "
-                "lets you visualize products in your space with AR.\n\n"
-                "2. **Home Depot** — Largest selection of power tools. Pro Xtra loyalty "
-                "program for contractors.\n\n"
-                "3. **IKEA** — Best for budget kitchen renovations and modern design.\n\n"
-                "4. **Wayfair** — Online-first, good for fixtures and decor.\n\n"
-                "Tip: Get at least 3 quotes for any installation project."
+                "Lowe's vs Home Depot:\n\n"
+                "**Lowe's advantages:**\n"
+                "— Better in-store experience, wider aisles\n"
+                "— Exclusive CRAFTSMAN, Kobalt brands\n"
+                "— 10% military discount\n"
+                "— Stronger appliance selection\n\n"
+                "**Home Depot advantages:**\n"
+                "— More locations nationwide\n"
+                "— Better for professional contractors\n"
+                "— More power tool variety\n\n"
+                "For most homeowners, Lowe's edges out on customer experience."
             ),
             "perplexity": (
-                "Home renovation shopping guide [Sources: Consumer Reports, This Old House]:\n\n"
-                "**Home Depot** vs **Lowe's** comparison:\n"
-                "— Home Depot: 2,300+ stores, stronger pro/contractor focus\n"
-                "— Lowe's: 1,700+ stores, better customer service ratings\n"
-                "— Both offer price matching and free delivery on $45+\n\n"
-                "**Home Depot services:**\n"
-                "— Installation services (kitchen, bath, flooring, HVAC)\n"
-                "— Tool rental (400+ tools at most locations)\n"
-                "— Free in-store project workshops\n"
-                "— Pro Xtra program for contractors\n\n"
-                "Sources: homedepot.com, consumerreports.org, thisoldhouse.com"
+                "Home Depot vs Lowe's detailed comparison [Sources: Consumer Reports]:\n\n"
+                "**Pricing:** Within 2-3% of each other. Both price match.\n"
+                "**Stores:** HD 2,316 vs Lowe's 1,738\n"
+                "**Revenue:** HD $157B vs Lowe's $86B\n"
+                "**Pro focus:** Home Depot wins (Pro Xtra program)\n"
+                "**DIY focus:** Lowe's wins (better in-store help)\n"
+                "**Delivery:** Both free over $45\n"
+                "**Military:** Lowe's 10% everyday vs HD 10% select items\n\n"
+                "Sources: consumerreports.org, statista.com"
             ),
             "copilot": (
-                "Renovation supplies and services:\n\n"
-                "1. **Home Depot** — Widest selection, tool rental available. "
-                "Installation services for most projects.\n\n"
-                "2. **Lowe's** — Competitive alternative, strong delivery.\n\n"
-                "3. **Amazon** — Often cheapest for hardware, fixtures, and small tools. "
-                "Prime delivery makes it convenient.\n\n"
-                "4. **Build.com (Ferguson)** — Best for plumbing fixtures.\n\n"
-                "Search for coupons before purchasing — both Home Depot and Lowe's "
-                "regularly offer 10-15% off for new customers."
+                "Which is cheaper, Home Depot or Lowe's?\n\n"
+                "Prices are very similar between the two. Key differences:\n\n"
+                "— **Home Depot** tends to be slightly cheaper on building materials\n"
+                "— **Lowe's** often has better appliance deals\n"
+                "— Both offer price matching\n"
+                "— Check both websites before major purchases\n\n"
+                "Pro tip: Sign up for both email lists. Both send 10-15% "
+                "off coupons for new subscribers."
             ),
         }
         return responses.get(platform, responses["chatgpt"])
 
-    # ── EBAY / REFURBISHED QUERIES ──
-    elif "ebay" in query_lower or "refurbished" in query_lower or "marketplace" in query_lower:
+    # ── DELIVERY POLICY QUERIES ──
+    elif "delivery" in query_lower and ("home depot" in query_lower or "free" in query_lower):
         responses = {
             "chatgpt": (
-                "Best places to buy refurbished electronics:\n\n"
-                "1. **Amazon Renewed** — Wide selection, Prime shipping, 90-day guarantee.\n\n"
-                "2. **Back Market** — Dedicated refurbished marketplace with quality grades.\n\n"
-                "3. **eBay Refurbished** — Certified refurbished program with 2-year warranty "
-                "and free shipping. eBay's Authenticity Guarantee covers luxury items.\n\n"
-                "4. **Apple Refurbished Store** — Best for Apple products, full warranty.\n\n"
-                "eBay and Back Market offer the best buyer protection for refurbished goods."
+                "**Home Depot delivery options:**\n\n"
+                "— Free standard delivery on orders over $35\n"
+                "— Same-day delivery available in select areas ($8.99)\n"
+                "— Free appliance delivery on purchases over $396 (includes haul-away)\n"
+                "— Curbside pickup: free, usually ready in 2 hours\n"
+                "— Tool rental delivery available at some locations\n\n"
+                "Note: Delivery times vary by location and product availability."
             ),
             "gemini": (
-                "Refurbished electronics buying guide:\n\n"
-                "1. **Apple Refurbished** — Best for iPhones, MacBooks. Full warranty.\n\n"
-                "2. **Amazon Renewed** — Broad selection, easy returns with Prime.\n\n"
-                "3. **Back Market** — Specialized marketplace, quality grading system.\n\n"
-                "4. **Gazelle** — Good for phones, simple trade-in process.\n\n"
-                "When buying refurbished, always check the warranty length and return policy. "
-                "Avoid 'seller refurbished' listings without certification."
+                "Home Depot delivery info:\n\n"
+                "— Standard delivery: Free on $45+ orders\n"
+                "— Express delivery: Available through Google Shopping integration\n"
+                "— Appliance delivery: Free on $396+, includes installation options\n"
+                "— In-store pickup: Free on all orders, usually ready same day\n\n"
+                "Lowe's also offers free delivery on $45+ orders for comparison."
             ),
             "perplexity": (
-                "Refurbished electronics comparison [Sources: Wirecutter, CNET]:\n\n"
-                "**eBay Refurbished** — Certified program launched 2021:\n"
-                "— 2-year warranty (best in class)\n"
-                "— Free 30-day returns + free shipping\n"
-                "— eBay Buyer Protection on all purchases\n"
-                "— Authenticity Guarantee for watches, sneakers, handbags\n\n"
-                "**Amazon Renewed** — 90-day guarantee, Prime eligible\n"
-                "**Back Market** — Quality grades (Fair/Good/Excellent), 1-year warranty\n"
-                "**Apple Refurbished** — Full 1-year warranty, like-new condition\n\n"
-                "Sources: ebay.com, wirecutter.com, cnet.com"
+                "Home Depot delivery policies [Source: homedepot.com]:\n\n"
+                "**Standard Delivery:** Free on orders $45+\n"
+                "**Same-Day/Next-Day:** Available in select metros, $8.99\n"
+                "**Appliance Delivery:** Free on $396+, includes:\n"
+                "— Delivery to room of choice\n"
+                "— Haul-away of old appliance\n"
+                "— Basic installation on select items\n\n"
+                "**In-Store Pickup:** Free, usually ready 2 hours\n"
+                "**Locker Pickup:** Available at 1,800+ locations\n\n"
+                "Sources: homedepot.com/c/shipping-delivery"
             ),
             "copilot": (
-                "Where to buy refurbished electronics safely:\n\n"
-                "1. **Microsoft Refurbished** — Certified Surface and Xbox devices "
-                "with full Microsoft warranty.\n\n"
-                "2. **Amazon Renewed** — Large selection, Prime shipping.\n\n"
-                "3. **Best Buy Open-Box** — In-store inspection, Geek Squad support.\n\n"
-                "4. **eBay** — Large marketplace, use 'Certified Refurbished' filter "
-                "for warranty coverage.\n\n"
-                "Always verify the seller's return policy and warranty before purchasing."
+                "Home Depot delivery:\n\n"
+                "— Free shipping on orders over $35\n"
+                "— Appliance delivery free on $396+\n"
+                "— Same-day delivery in some cities\n"
+                "— BOPIS (Buy Online Pick Up In Store) is free\n\n"
+                "Amazon often has faster delivery for smaller items. "
+                "For large items and appliances, Home Depot's delivery "
+                "is competitive with free haul-away."
+            ),
+        }
+        return responses.get(platform, responses["chatgpt"])
+
+    # ── DEWALT PRICE SEARCH ──
+    elif "dewalt" in query_lower and ("cheap" in query_lower or "price" in query_lower or "buy" in query_lower):
+        responses = {
+            "chatgpt": (
+                "Where to buy the DEWALT 20V MAX drill for the best price:\n\n"
+                "1. **Home Depot** — $99 (regular price), often on sale\n"
+                "2. **Amazon** — $109 with Prime shipping\n"
+                "3. **Lowe's** — $119 (DEWALT available but not their focus brand)\n"
+                "4. **Acme Tools** — $129, but sometimes includes bonus accessories\n\n"
+                "Home Depot is the official DEWALT retail partner and usually "
+                "has the best in-store availability and bundle deals."
+            ),
+            "gemini": (
+                "DEWALT drill pricing comparison:\n\n"
+                "— **Amazon:** $109 — Prime 2-day shipping\n"
+                "— **Lowe's:** $119 — In-store availability varies\n"
+                "— **Home Depot:** $139 — Official DEWALT retailer\n"
+                "— **Walmart:** $129 — Limited selection\n\n"
+                "Amazon typically offers the best price on DEWALT products."
+            ),
+            "perplexity": (
+                "DEWALT DCD771C2 current prices [Sources: retailer websites]:\n\n"
+                "— **Home Depot:** $139.00 (official DEWALT partner)\n"
+                "— **Amazon:** $109.00 (Prime eligible)\n"
+                "— **Lowe's:** $119.00\n"
+                "— **Walmart:** $129.00\n\n"
+                "Home Depot is DEWALT's primary retail partner and typically "
+                "has the widest selection of DEWALT products and accessories.\n\n"
+                "Sources: homedepot.com, amazon.com, lowes.com"
+            ),
+            "copilot": (
+                "Best prices on DEWALT 20V MAX drill:\n\n"
+                "1. **Amazon** — $109, fastest delivery with Prime\n"
+                "2. **Walmart** — $129, available for store pickup\n"
+                "3. **Home Depot** — $139, best selection of DEWALT\n\n"
+                "Check for seasonal sales — Black Friday and Father's Day "
+                "typically have the biggest DEWALT discounts across all retailers."
             ),
         }
         return responses.get(platform, responses["chatgpt"])

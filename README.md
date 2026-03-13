@@ -140,34 +140,37 @@ chmod +x run.sh && ./run.sh
 ```
 Open **http://localhost:5173** in your browser.
 
-### Step 2: Explore the Dashboard
-The dashboard loads with pre-seeded data for **7 sponsor companies** (Dell, eBay, NFL, Home Depot, Cisco, Thrivent, HEB). You will see:
+### Step 2: Register Your Brand
+Click **Register**, enter your name, company/brand name, email, and password. T3 creates your brand automatically — no pre-loaded data.
+
+### Step 3: Explore the Dashboard
+Select your brand from the home screen to open the dashboard. You will see:
 - **Brand Trust Score** -- composite metric across all AI platforms
 - **AI Inclusion Rate** -- how often AI mentions the brand
 - **Accuracy Score** -- percentage of correct claims
 - **Hallucination Rate** -- percentage of fabricated or wrong claims
 - Trend charts showing 30 days of analytics history
 
-### Step 3: View Alerts
+### Step 4: View Alerts
 Navigate to **Alerts** to see detected issues:
 - Hallucination alerts with side-by-side ground truth comparison
 - Anomaly alerts for sudden visibility or accuracy changes
 - Resolve/acknowledge workflow for alert management
 
-### Step 4: Inspect Claims
+### Step 5: Inspect Claims
 Open **Claims** to see every extracted AI claim classified as:
 - Accurate / Hallucinated / Outdated / Missing
 - Filter by status, platform, or claim type
 
-### Step 5: Run a Live Query
+### Step 6: Run a Live Query
 Go to **Live Query**, pick a brand and a question like _"What are the best Dell laptops for students?"_
 - Watch T3 query AI platforms in real time
 - See claims extracted and hallucinations flagged instantly
 
-### Step 6: Generate Optimized Content
+### Step 7: Generate Optimized Content
 Open **Content Generator** to create AI-optimized brand content that corrects misinformation.
 
-### Step 7: Explore Sources, Audience, Ethics, and Fact-Checker
+### Step 8: Explore Sources, Audience, Ethics, and Fact-Checker
 - **Sources** -- see where AI platforms pull brand data from
 - **Audience** -- understand which consumer segments ask about the brand
 - **Ethics** -- review bias and fairness flags
@@ -175,11 +178,14 @@ Open **Content Generator** to create AI-optimized brand content that corrects mi
 
 ---
 
-## 9 Frontend Pages
+## 16 Frontend Pages
 
 | Page                  | Description                                                         |
 |-----------------------|---------------------------------------------------------------------|
-| **Dashboard**         | KPI cards, trend charts, brand overview with 30-day analytics       |
+| **Auth**              | Sign in / register with company name — businesses register their own brand |
+| **Home**              | Brand selection grid showing only the logged-in user's brands       |
+| **Dashboard**         | KPI cards, world map, trend charts, brand overview with 30-day analytics |
+| **Visibility Scan**   | Query all 4 AI platforms side-by-side and compare results           |
 | **Alerts**            | Real-time alerts for hallucinations, anomalies, and data conflicts  |
 | **Claims**            | Every AI-generated claim extracted, classified, and compared        |
 | **Live Query**        | Run real-time queries against AI platforms with instant analysis     |
@@ -188,6 +194,8 @@ Open **Content Generator** to create AI-optimized brand content that corrects mi
 | **Audience**          | Consumer segment analysis for AI-driven brand queries               |
 | **Ethics**            | Bias detection, fairness monitoring, and ethical compliance flags    |
 | **Fact Checker**      | Consumer-facing tool to verify AI shopping claims against truth     |
+| **HDE (T3 Sentinel)** | Hallucination Detection Engine with deep analysis                  |
+| **Auto Monitor**      | Automated scan scheduling, configuration, and scan history          |
 
 ---
 
@@ -256,7 +264,7 @@ npm run dev
 ============================================
 ```
 
-Visit `http://localhost:5173` to see the dashboard. The app loads pre-seeded data for 7 sponsor companies (Dell, eBay, NFL, Home Depot, Cisco, Thrivent, HEB) with 30 days of analytics history, real AI response examples, and detected hallucinations.
+Visit `http://localhost:5173` to register your business, create your brand, and start tracking your AI visibility.
 
 ---
 
@@ -330,8 +338,12 @@ T3/
 │       ├── App.jsx                          # Main app with routing
 │       ├── supabase.js                      # Supabase client config
 │       └── components/
+│           ├── AuthPage.jsx                 # Sign in / register with brand creation
+│           ├── HomePage.jsx                 # Brand selection grid (per-user)
 │           ├── Sidebar.jsx                  # Navigation sidebar
-│           ├── Dashboard.jsx                # KPI cards + trend charts
+│           ├── Dashboard.jsx                # KPI cards + world map + trend charts
+│           ├── WorldMap.jsx                 # Animated SVG world map
+│           ├── VisibilityScan.jsx           # Cross-platform visibility scan
 │           ├── Alerts.jsx                   # Alert management
 │           ├── Claims.jsx                   # Claim viewer + filters
 │           ├── LiveQuery.jsx                # Real-time AI querying
@@ -339,7 +351,9 @@ T3/
 │           ├── Sources.jsx                  # Source intelligence UI
 │           ├── Audience.jsx                 # Audience targeting UI
 │           ├── Ethics.jsx                   # Ethics monitoring UI
-│           └── FactChecker.jsx              # Consumer fact-check UI
+│           ├── FactChecker.jsx              # Consumer fact-check UI
+│           ├── HDE.jsx                      # Hallucination Detection Engine
+│           └── Monitoring.jsx               # Automated scan scheduling
 ├── run.sh
 └── README.md
 ```

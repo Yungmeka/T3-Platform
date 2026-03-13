@@ -2,25 +2,109 @@ import { useState, useEffect } from 'react';
 
 const BACKEND = 'http://localhost:8000';
 
-const priorityColors = {
-  critical: 'bg-red-500/20 text-red-400',
-  high: 'bg-amber-500/20 text-amber-400',
-  maintain: 'bg-green-500/20 text-green-400',
+const priorityBadge = {
+  critical: 'badge-red',
+  high: 'badge-amber',
+  maintain: 'badge-green',
 };
+
+const priorityBorder = {
+  critical: { borderColor: 'rgba(239,68,68,0.25)' },
+  high: { borderColor: 'rgba(245,158,11,0.25)' },
+  maintain: { borderColor: 'rgba(16,185,129,0.25)' },
+};
+
+function SkeletonCard({ className = '' }) {
+  return (
+    <div className={`card p-5 animate-pulse ${className}`}>
+      <div className="h-3 bg-slate-200 rounded-full w-1/3 mb-4" />
+      <div className="h-8 bg-slate-200 rounded-full w-1/2 mb-3" />
+      <div className="h-2 bg-slate-200 rounded-full w-2/3" />
+    </div>
+  );
+}
+
+function SkeletonSegment() {
+  return (
+    <div className="card p-5 animate-pulse">
+      <div className="flex justify-between items-start mb-4">
+        <div className="space-y-2 flex-1 mr-8">
+          <div className="h-3 bg-slate-200 rounded-full w-1/3" />
+          <div className="h-2 bg-slate-200 rounded-full w-2/3" />
+        </div>
+        <div className="h-6 bg-slate-200 rounded-full w-12" />
+      </div>
+      <div className="h-2 bg-slate-200 rounded-full w-full mb-4" />
+      <div className="flex gap-4">
+        <div className="h-2 bg-slate-200 rounded-full w-1/4" />
+        <div className="h-2 bg-slate-200 rounded-full w-1/3" />
+      </div>
+    </div>
+  );
+}
+
+function ReachBar({ rate }) {
+  const isHigh = rate >= 50;
+  const isMed = rate > 0 && rate < 50;
+
+  const gradientClass = isHigh
+    ? 'bg-gradient-to-r from-violet-500 to-pink-500'
+    : isMed
+    ? 'bg-gradient-to-r from-amber-500 to-orange-400'
+    : 'bg-gradient-to-r from-red-500 to-rose-500';
+
+  return (
+    <div className="progress-bar h-2">
+      <div
+        className={`progress-fill transition-all duration-700 ${gradientClass}`}
+        style={{ width: `${Math.max(rate, 2)}%` }}
+      />
+    </div>
+  );
+}
 
 export default function Audience({ brand }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     fetch(`${BACKEND}/api/audience/${brand.id}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+      .catch(() => { setLoading(false); setError('Could not connect to backend. Make sure the server is running on port 8000.'); });
   }, [brand.id]);
 
-  if (loading) return <div className="text-slate-500 py-20 text-center">Analyzing audiences...</div>;
+  if (error) return (
+    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-600 text-sm">{error}</div>
+  );
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        {/* Header skeleton */}
+        <div className="animate-pulse space-y-2">
+          <div className="h-6 bg-slate-200 rounded-full w-48" />
+          <div className="h-3 bg-slate-200 rounded-full w-72" />
+        </div>
+
+        {/* Stat cards skeleton */}
+        <div className="grid grid-cols-3 gap-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+
+        {/* Segment skeletons */}
+        <div className="space-y-3">
+          <SkeletonSegment />
+          <SkeletonSegment />
+          <SkeletonSegment />
+        </div>
+      </div>
+    );
+  }
 
   const reached = data?.reached_audiences || [];
   const underserved = data?.underserved_audiences || [];
@@ -29,76 +113,191 @@ export default function Audience({ brand }) {
   const recommendations = data?.recommendations || [];
 
   return (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-xl font-bold text-white mb-1">Audience Targeting</h2>
-        <p className="text-sm text-slate-500">Which customers is AI reaching for {brand.name}?</p>
+    <div className="space-y-8 animate-fade-in">
+
+      {/* ── Header ── */}
+      <div style={{ animationDelay: '0ms' }} className="animate-fade-in">
+        <h2
+          className="text-2xl font-bold text-slate-800 mb-1"
+          style={{ fontFamily: 'Outfit' }}
+        >
+          Audience Targeting
+        </h2>
+        <p className="text-sm text-slate-600">
+          Which customers is AI reaching for{' '}
+          <span className="text-slate-700 font-medium">{brand.name}</span>?
+        </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-[#111827] rounded-2xl border border-green-500/30 p-5 text-center glow-green">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Reached</p>
-          <p className="text-3xl font-bold text-green-400">{reached.length}</p>
-          <p className="text-xs text-slate-500 mt-1">segments at 50%+ reach</p>
+      {/* ── Stat Cards ── */}
+      <div className="grid grid-cols-3 gap-4">
+
+        {/* Reached */}
+        <div
+          className="card glow-green p-6 text-center animate-fade-in"
+          style={{ animationDelay: '80ms' }}
+        >
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-3 font-medium">
+            Reached
+          </p>
+          <p
+            className="text-4xl font-bold text-emerald-600 leading-none mb-2"
+            style={{ fontFamily: 'Outfit' }}
+          >
+            {reached.length}
+          </p>
+          <p className="text-[11px] text-slate-500">segments at 50%+ reach</p>
         </div>
-        <div className="bg-[#111827] rounded-2xl border border-amber-500/30 p-5 text-center glow-amber">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Underserved</p>
-          <p className="text-3xl font-bold text-amber-400">{underserved.length}</p>
-          <p className="text-xs text-slate-500 mt-1">segments at 1-49% reach</p>
+
+        {/* Underserved */}
+        <div
+          className="card glow-amber p-6 text-center animate-fade-in"
+          style={{ animationDelay: '130ms' }}
+        >
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-3 font-medium">
+            Underserved
+          </p>
+          <p
+            className="text-4xl font-bold text-amber-600 leading-none mb-2"
+            style={{ fontFamily: 'Outfit' }}
+          >
+            {underserved.length}
+          </p>
+          <p className="text-[11px] text-slate-500">segments at 1–49% reach</p>
         </div>
-        <div className="bg-[#111827] rounded-2xl border border-red-500/30 p-5 text-center glow-red">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Invisible</p>
-          <p className="text-3xl font-bold text-red-400">{invisible.length}</p>
-          <p className="text-xs text-slate-500 mt-1">segments at 0% reach</p>
+
+        {/* Invisible */}
+        <div
+          className="card glow-red p-6 text-center animate-fade-in"
+          style={{ animationDelay: '180ms' }}
+        >
+          <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-3 font-medium">
+            Invisible
+          </p>
+          <p
+            className="text-4xl font-bold text-red-600 leading-none mb-2"
+            style={{ fontFamily: 'Outfit' }}
+          >
+            {invisible.length}
+          </p>
+          <p className="text-[11px] text-slate-500">segments at 0% reach</p>
         </div>
       </div>
 
-      <div className="space-y-3 mb-8">
-        {segments.map((seg, i) => (
-          <div key={i} className="bg-[#111827] rounded-2xl border border-[#1E293B] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h4 className="text-white font-medium text-sm">{seg.segment}</h4>
-                <p className="text-xs text-slate-500">{seg.description}</p>
+      {/* ── Segment Cards ── */}
+      <div className="space-y-3">
+        {segments.map((seg, i) => {
+          const isHigh = seg.reach_rate >= 50;
+          const isMed = seg.reach_rate > 0 && seg.reach_rate < 50;
+
+          const rateColor = isHigh
+            ? 'text-emerald-600'
+            : isMed
+            ? 'text-amber-600'
+            : 'text-red-600';
+
+          return (
+            <div
+              key={i}
+              className="card p-5 animate-fade-in"
+              style={{ animationDelay: `${240 + i * 60}ms` }}
+            >
+              {/* Top row: name + reach rate */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0 pr-4">
+                  <h4
+                    className="text-slate-800 font-semibold text-sm leading-snug"
+                    style={{ fontFamily: 'Outfit' }}
+                  >
+                    {seg.segment}
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                    {seg.description}
+                  </p>
+                </div>
+                <span
+                  className={`text-2xl font-bold shrink-0 ${rateColor}`}
+                  style={{ fontFamily: 'Outfit' }}
+                >
+                  {seg.reach_rate}%
+                </span>
               </div>
-              <span className={`text-lg font-bold ${
-                seg.reach_rate >= 50 ? 'text-green-400' :
-                seg.reach_rate > 0 ? 'text-amber-400' : 'text-red-400'
-              }`}>{seg.reach_rate}%</span>
-            </div>
-            <div className="w-full bg-[#1E293B] rounded-full h-2 mb-3">
-              <div className={`rounded-full h-2 transition-all ${
-                seg.reach_rate >= 50 ? 'bg-green-500' :
-                seg.reach_rate > 0 ? 'bg-amber-500' : 'bg-red-500'
-              }`} style={{ width: `${Math.max(seg.reach_rate, 2)}%` }} />
-            </div>
-            <div className="flex gap-6 text-xs">
-              <div><span className="text-slate-500">Demographics: </span><span className="text-slate-300">{seg.demographics}</span></div>
-              <div><span className="text-slate-500">AI behavior: </span><span className="text-slate-300">{seg.ai_behavior}</span></div>
-            </div>
-            {seg.sample_queries?.length > 0 && (
-              <div className="flex gap-2 mt-3">
-                {seg.sample_queries.map((q, j) => (
-                  <span key={j} className="px-2 py-1 bg-[#1E293B] text-slate-400 rounded-lg text-[11px]">"{q}"</span>
-                ))}
+
+              {/* Progress bar */}
+              <div className="mb-4">
+                <ReachBar rate={seg.reach_rate} />
               </div>
-            )}
-          </div>
-        ))}
+
+              {/* Meta row */}
+              <div className="inner-card px-4 py-3 flex flex-wrap gap-x-6 gap-y-1.5 text-xs">
+                <div>
+                  <span className="text-slate-500">Demographics: </span>
+                  <span className="text-slate-700">{seg.demographics}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500">AI behavior: </span>
+                  <span className="text-slate-700">{seg.ai_behavior}</span>
+                </div>
+              </div>
+
+              {/* Sample query pills */}
+              {seg.sample_queries?.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {seg.sample_queries.map((q, j) => (
+                    <span
+                      key={j}
+                      className="inner-card px-3 py-1 text-slate-500 text-[11px] rounded-lg
+                                 cursor-default transition-all duration-200
+                                 hover:border-violet-300 hover:text-violet-600"
+                    >
+                      "{q}"
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
+      {/* ── Recommendations ── */}
       {recommendations.length > 0 && (
-        <div className="bg-[#111827] rounded-2xl border border-[#1E293B] p-5">
-          <h3 className="text-sm font-semibold text-slate-300 mb-4">Targeting Recommendations</h3>
+        <div
+          className="card p-6 animate-fade-in"
+          style={{ animationDelay: `${240 + segments.length * 60 + 60}ms` }}
+        >
+          <h3
+            className="text-base font-semibold text-slate-800 mb-5"
+            style={{ fontFamily: 'Outfit' }}
+          >
+            Targeting Recommendations
+          </h3>
+
           <div className="space-y-3">
             {recommendations.map((rec, i) => (
-              <div key={i} className="bg-[#0B1120] rounded-xl p-4 border border-[#1E293B]">
+              <div
+                key={i}
+                className={`inner-card p-4 border animate-fade-in transition-all duration-200
+                            hover:border-slate-300`}
+                style={{
+                  animationDelay: `${300 + segments.length * 60 + i * 50}ms`,
+                  ...(priorityBorder[rec.priority] || {}),
+                }}
+              >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${priorityColors[rec.priority]}`}>{rec.priority}</span>
-                  <span className="text-xs text-slate-400">{rec.segment}</span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider
+                                ${priorityBadge[rec.priority]}`}
+                    style={{ fontFamily: 'Outfit' }}
+                  >
+                    {rec.priority}
+                  </span>
+                  <span className="text-[11px] text-slate-500">{rec.segment}</span>
                 </div>
-                <p className="text-sm text-white font-medium mb-1">{rec.action}</p>
-                <p className="text-xs text-slate-400">{rec.detail}</p>
+                <p className="text-sm text-slate-800 font-medium mb-1 leading-snug">
+                  {rec.action}
+                </p>
+                <p className="text-xs text-slate-600 leading-relaxed">{rec.detail}</p>
               </div>
             ))}
           </div>

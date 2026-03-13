@@ -1,11 +1,22 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import queries, analytics, alerts, sources, content, audience, ethics, improvement, factcheck, scan
+from app.routers import queries, analytics, alerts, sources, content, audience, ethics, improvement, factcheck, scan, monitoring, hde
+from app.services.scheduler import start_scheduler, stop_scheduler
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start automated monitoring on boot, stop on shutdown."""
+    start_scheduler()
+    yield
+    stop_scheduler()
 
 app = FastAPI(
     title="T3 - Track. Trust. Transform.",
     description="AI Brand Visibility & Trust Platform — Lane College HBCU BOTB 2026",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -42,6 +53,12 @@ app.include_router(factcheck.router, prefix="/api/factcheck", tags=["Consumer Fa
 # Full scan orchestrator
 app.include_router(scan.router, prefix="/api/scan", tags=["Full Scan Orchestrator"])
 
+# Automated monitoring
+app.include_router(monitoring.router, prefix="/api/monitoring", tags=["Automated Monitoring"])
+
+# HDE — Hallucination Detection Engine (embeddable API)
+app.include_router(hde.router, prefix="/api/hde", tags=["HDE — Hallucination Detection Engine"])
+
 
 @app.get("/", tags=["System"])
 def root():
@@ -64,6 +81,8 @@ def root():
             "consumer_factchecker": "Consumer-facing AI recommendation verification",
             "anomaly_detector": "Visibility drop and data anomaly detection",
             "orchestrator": "Full-scan pipeline across all platforms",
+            "automated_scheduler": "APScheduler-powered daily/hourly automated monitoring",
+            "hde": "Embeddable Hallucination Detection Engine — real-time fact-guard API",
         },
     }
 

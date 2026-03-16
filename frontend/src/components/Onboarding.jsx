@@ -2,15 +2,25 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { runVisibilityScan } from '../services/sentinel';
 
-// createTrialSubscription resolves lazily on first call so the component
-// works even if billing.js does not exist yet.
-async function createTrialSubscription(userId, plan) {
+// createTrialSubscription and getSubscription resolve lazily on first call so
+// the component works even if billing.js does not exist yet.
+async function createTrialSubscription(userId, planId) {
   try {
     const mod = await import('../services/billing');
-    return await mod.createTrialSubscription(userId, plan);
+    return await mod.createTrialSubscription(userId, planId);
   } catch {
-    console.warn('[Onboarding] billing.js not found — skipping trial creation for plan:', plan);
-    return { ok: true, plan };
+    console.warn('[Onboarding] billing.js not found — skipping trial creation for plan:', planId);
+    return { ok: true, planId };
+  }
+}
+
+async function getSubscription(userId) {
+  try {
+    const mod = await import('../services/billing');
+    return await mod.getSubscription(userId);
+  } catch {
+    console.warn('[Onboarding] billing.js not found — skipping subscription lookup');
+    return null;
   }
 }
 
@@ -38,7 +48,7 @@ const GRADIENT_STYLE = {
 
 const PLANS = [
   {
-    id: 'starter',
+    id: 1,
     name: 'Starter',
     price: '$49',
     period: '/mo',
@@ -47,7 +57,7 @@ const PLANS = [
     highlight: false,
   },
   {
-    id: 'growth',
+    id: 2,
     name: 'Growth',
     price: '$149',
     period: '/mo',
@@ -56,7 +66,7 @@ const PLANS = [
     highlight: true,
   },
   {
-    id: 'enterprise',
+    id: 3,
     name: 'Enterprise',
     price: '$499',
     period: '/mo',
@@ -254,15 +264,42 @@ function StepWelcome({ onNext }) {
 
 // ─── Step 1: Choose Plan ──────────────────────────────────────────────────────
 
-function StepChoosePlan({ session, onNext }) {
-  const [loading, setLoading] = useState(null);
+function StepChoosePlan({ session, onNext, onBack }) {
+  const [loading, setLoading] = useState(null); // plan id currently loading, or 'skip'
   const [error, setError] = useState('');
+
+  const isAnyLoading = loading !== null;
 
   async function handleSelectPlan(planId) {
     setError('');
     setLoading(planId);
     try {
-      await createTrialSubscription(session.user.id, planId);
+      const userId = session?.user?.id;
+      if (userId) {
+        const existing = await getSubscription(userId);
+        if (!existing) {
+          await createTrialSubscription(userId, planId);
+        }
+      }
+      onNext();
+    } catch (err) {
+      setError(err.message || 'Could not start trial. Please try again.');
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleSkip() {
+    setError('');
+    setLoading('skip');
+    try {
+      const userId = session?.user?.id;
+      if (userId) {
+        const existing = await getSubscription(userId);
+        if (!existing) {
+          await createTrialSubscription(userId, 1); // Starter plan trial
+        }
+      }
       onNext();
     } catch (err) {
       setError(err.message || 'Could not start trial. Please try again.');
@@ -358,7 +395,7 @@ function StepChoosePlan({ session, onNext }) {
 
               <button
                 onClick={() => handleSelectPlan(plan.id)}
-                disabled={loading !== null}
+                disabled={isAnyLoading}
                 className="w-full py-2.5 rounded-full text-sm font-bold transition-all duration-200 disabled:opacity-60"
                 style={
                   plan.highlight
@@ -367,7 +404,7 @@ function StepChoosePlan({ session, onNext }) {
                         background: 'transparent',
                         border: '1.5px solid #E2E8F0',
                         color: '#64748B',
-                        cursor: loading !== null ? 'not-allowed' : 'pointer',
+                        cursor: isAnyLoading ? 'not-allowed' : 'pointer',
                         fontFamily: "'DM Sans', sans-serif",
                       }
                 }
@@ -393,20 +430,41 @@ function StepChoosePlan({ session, onNext }) {
       )}
 
       <button
-        onClick={onNext}
-        disabled={loading !== null}
+        onClick={handleSkip}
+        disabled={isAnyLoading}
         className="w-full text-xs text-slate-400 hover:text-violet-600 transition-colors py-1 disabled:opacity-50"
-        style={{ fontFamily: "'DM Sans', sans-serif", background: 'none', border: 'none', cursor: 'pointer' }}
+        style={{ fontFamily: "'DM Sans', sans-serif", background: 'none', border: 'none', cursor: isAnyLoading ? 'not-allowed' : 'pointer' }}
       >
-        Skip — start with free trial
+        {loading === 'skip' ? (
+          <span className="flex items-center justify-center gap-1.5">
+            <svg className="animate-spin h-3 w-3 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Starting free trial...
+          </span>
+        ) : (
+          'Skip — start with free trial'
+        )}
       </button>
+
+      <div className="flex justify-center mt-3">
+        <button
+          onClick={onBack}
+          disabled={isAnyLoading}
+          className="text-xs text-slate-500 hover:text-violet-600 transition-colors disabled:opacity-50"
+          style={{ fontFamily: "'DM Sans', sans-serif", background: 'none', border: 'none', cursor: isAnyLoading ? 'not-allowed' : 'pointer' }}
+        >
+          Back
+        </button>
+      </div>
     </div>
   );
 }
 
 // ─── Step 2: Add Your Brand ───────────────────────────────────────────────────
 
-function StepAddBrand({ session, onNext }) {
+function StepAddBrand({ session, onNext, onBack }) {
   const [brandName, setBrandName] = useState(session?.user?.user_metadata?.company_name || '');
   const [website, setWebsite] = useState('');
   const [industry, setIndustry] = useState('');
@@ -595,13 +653,24 @@ function StepAddBrand({ session, onNext }) {
           )}
         </button>
       </form>
+
+      <div className="flex justify-center mt-3">
+        <button
+          onClick={onBack}
+          disabled={loading}
+          className="text-xs text-slate-500 hover:text-violet-600 transition-colors disabled:opacity-50"
+          style={{ fontFamily: "'DM Sans', sans-serif", background: 'none', border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}
+        >
+          Back
+        </button>
+      </div>
     </div>
   );
 }
 
 // ─── Step 3: First Scan ───────────────────────────────────────────────────────
 
-function StepFirstScan({ brand, onComplete }) {
+function StepFirstScan({ brand, onComplete, onBack }) {
   const [scanPhase, setScanPhase] = useState('scanning'); // 'scanning' | 'done'
   const [currentPlatformIdx, setCurrentPlatformIdx] = useState(0);
   const [scanResults, setScanResults] = useState(null);
@@ -813,6 +882,16 @@ function StepFirstScan({ brand, onComplete }) {
       >
         View Dashboard
       </button>
+
+      <div className="flex justify-center mt-3">
+        <button
+          onClick={onBack}
+          className="text-xs text-slate-500 hover:text-violet-600 transition-colors"
+          style={{ fontFamily: "'DM Sans', sans-serif", background: 'none', border: 'none', cursor: 'pointer' }}
+        >
+          Back
+        </button>
+      </div>
     </div>
   );
 }
@@ -866,10 +945,10 @@ export default function Onboarding({ session, onComplete }) {
 
         {/* Step panels */}
         {step === 0 && <StepWelcome onNext={() => setStep(1)} />}
-        {step === 1 && <StepChoosePlan session={session} onNext={() => setStep(2)} />}
-        {step === 2 && <StepAddBrand session={session} onNext={goNext} />}
+        {step === 1 && <StepChoosePlan session={session} onNext={() => setStep(2)} onBack={() => setStep(0)} />}
+        {step === 2 && <StepAddBrand session={session} onNext={goNext} onBack={() => setStep(1)} />}
         {step === 3 && createdBrand ? (
-          <StepFirstScan brand={createdBrand} onComplete={onComplete} />
+          <StepFirstScan brand={createdBrand} onComplete={onComplete} onBack={() => setStep(2)} />
         ) : step === 3 && !createdBrand ? (
           <div className="text-center py-8">
             <p className="text-sm text-slate-500 mb-4" style={{ fontFamily: "'DM Sans', sans-serif" }}>

@@ -7,7 +7,7 @@ const INPUT_CLASS =
   'focus:border-violet-400 focus:ring-1 focus:ring-violet-400';
 
 export default function AuthPage({ onBack }) {
-  const [mode, setMode]       = useState('signin'); // 'signin' | 'register'
+  const [mode, setMode]       = useState('signin'); // 'signin' | 'register' | 'reset'
   const [name, setName]       = useState('');
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail]     = useState('');
@@ -15,7 +15,12 @@ export default function AuthPage({ onBack }) {
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Reset-password specific state
+  const [resetEmail, setResetEmail]     = useState('');
+  const [resetSuccess, setResetSuccess] = useState(false);
+
   const isRegister = mode === 'register';
+  const isReset    = mode === 'reset';
 
   const resetForm = () => {
     setName('');
@@ -28,6 +33,11 @@ export default function AuthPage({ onBack }) {
   const switchMode = (next) => {
     setMode(next);
     resetForm();
+    if (next === 'reset') {
+      setResetEmail(email); // pre-fill with whatever the user already typed
+      setResetSuccess(false);
+      setError('');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -55,6 +65,25 @@ export default function AuthPage({ onBack }) {
         });
         if (signInError) throw signInError;
       }
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        resetEmail,
+        { redirectTo: window.location.origin }
+      );
+      if (resetError) throw resetError;
+      setResetSuccess(true);
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -152,182 +181,332 @@ export default function AuthPage({ onBack }) {
           </p>
         </div>
 
-        {/* Pill toggle */}
-        <div
-          className="flex mb-7 p-1 rounded-full"
-          style={{ background: '#F1F5F9' }}
-          role="tablist"
-          aria-label="Authentication mode"
-        >
-          {[
-            { id: 'signin',   label: 'Sign In' },
-            { id: 'register', label: 'Register' },
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={mode === id}
-              onClick={() => switchMode(id)}
-              className="flex-1 py-2 text-sm font-semibold rounded-full transition-all duration-200"
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                background: mode === id
-                  ? 'linear-gradient(135deg, #7C3AED, #8B5CF6)'
-                  : 'transparent',
-                color: mode === id ? '#FFFFFF' : '#64748B',
-                boxShadow: mode === id ? '0 2px 8px rgba(124, 58, 237, 0.25)' : 'none',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* Pill toggle — hidden while in reset view */}
+        {!isReset && (
+          <div
+            className="flex mb-7 p-1 rounded-full"
+            style={{ background: '#F1F5F9' }}
+            role="tablist"
+            aria-label="Authentication mode"
+          >
+            {[
+              { id: 'signin',   label: 'Sign In' },
+              { id: 'register', label: 'Register' },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={mode === id}
+                onClick={() => switchMode(id)}
+                className="flex-1 py-2 text-sm font-semibold rounded-full transition-all duration-200"
+                style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  background: mode === id
+                    ? 'linear-gradient(135deg, #7C3AED, #8B5CF6)'
+                    : 'transparent',
+                  color: mode === id ? '#FFFFFF' : '#64748B',
+                  boxShadow: mode === id ? '0 2px 8px rgba(124, 58, 237, 0.25)' : 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="flex flex-col gap-3">
-            {isRegister && (
-              <>
-                <div>
-                  <label
-                    htmlFor="auth-name"
-                    className="block text-xs font-semibold text-slate-500 mb-1.5"
+        {/* ── Reset-password view ── */}
+        {isReset ? (
+          <div>
+            {/* Section heading */}
+            <div className="mb-6">
+              <h2
+                className="text-slate-800 font-bold text-lg leading-tight"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+              >
+                Reset your password
+              </h2>
+              <p
+                className="text-slate-400 text-xs mt-1"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+              >
+                Enter your account email and we&apos;ll send a reset link.
+              </p>
+            </div>
+
+            {resetSuccess ? (
+              /* Success state */
+              <div
+                className="rounded-xl px-4 py-4 text-center"
+                style={{ background: '#F0FDF4', border: '1px solid #BBF7D0' }}
+              >
+                <p
+                  className="text-sm font-semibold text-emerald-700"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  Check your email for a password reset link
+                </p>
+                <p
+                  className="text-xs text-emerald-600 mt-1"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  Didn&apos;t receive it? Check your spam folder.
+                </p>
+              </div>
+            ) : (
+              /* Reset form */
+              <form onSubmit={handleResetPassword} noValidate>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label
+                      htmlFor="reset-email"
+                      className="block text-xs font-semibold text-slate-500 mb-1.5"
+                      style={{ fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      Email Address
+                    </label>
+                    <input
+                      id="reset-email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="you@company.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      required
+                      className={INPUT_CLASS}
+                      style={{ fontFamily: "'DM Sans', sans-serif" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Error message */}
+                {error && (
+                  <p
+                    className="mt-4 text-sm text-red-500 text-center"
+                    role="alert"
                     style={{ fontFamily: "'DM Sans', sans-serif" }}
                   >
-                    Full Name
-                  </label>
-                  <input
-                    id="auth-name"
-                    type="text"
-                    autoComplete="name"
-                    placeholder="Jane Smith"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required={isRegister}
-                    className={INPUT_CLASS}
-                    style={{ fontFamily: "'DM Sans', sans-serif" }}
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="auth-company"
-                    className="block text-xs font-semibold text-slate-500 mb-1.5"
-                    style={{ fontFamily: "'DM Sans', sans-serif" }}
-                  >
-                    Company / Brand Name
-                  </label>
-                  <input
-                    id="auth-company"
-                    type="text"
-                    autoComplete="organization"
-                    placeholder="Acme Inc."
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    required={isRegister}
-                    className={INPUT_CLASS}
-                    style={{ fontFamily: "'DM Sans', sans-serif" }}
-                  />
-                </div>
-              </>
+                    {error}
+                  </p>
+                )}
+
+                {/* Send reset link button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-6 w-full py-3 rounded-full text-white text-sm font-bold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                    border: 'none',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    boxShadow: loading ? 'none' : '0 4px 20px rgba(139, 92, 246, 0.35)',
+                    letterSpacing: '0.01em',
+                  }}
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg
+                        className="animate-spin h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12" cy="12" r="10"
+                          stroke="currentColor" strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                      Sending...
+                    </span>
+                  ) : (
+                    'Send Reset Link'
+                  )}
+                </button>
+              </form>
             )}
 
-            <div>
-              <label
-                htmlFor="auth-email"
-                className="block text-xs font-semibold text-slate-500 mb-1.5"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              >
-                Email Address
-              </label>
-              <input
-                id="auth-email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className={INPUT_CLASS}
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="auth-password"
-                className="block text-xs font-semibold text-slate-500 mb-1.5"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              >
-                Password
-              </label>
-              <input
-                id="auth-password"
-                type="password"
-                autoComplete={isRegister ? 'new-password' : 'current-password'}
-                placeholder={isRegister ? 'Min. 8 characters' : '••••••••'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className={INPUT_CLASS}
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              />
-            </div>
-          </div>
-
-          {/* Error message */}
-          {error && (
+            {/* Back to Sign In link */}
             <p
-              className="mt-4 text-sm text-red-500 text-center"
-              role="alert"
+              className="text-center mt-5"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              {error}
+              <button
+                onClick={() => switchMode('signin')}
+                className="text-xs text-violet-500 hover:text-violet-700 transition-colors font-medium"
+                style={{ fontFamily: "'DM Sans', sans-serif", background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                &larr; Back to Sign In
+              </button>
             </p>
-          )}
+          </div>
+        ) : (
+          /* ── Sign-in / Register form ── */
+          <form onSubmit={handleSubmit} noValidate>
+            <div className="flex flex-col gap-3">
+              {isRegister && (
+                <>
+                  <div>
+                    <label
+                      htmlFor="auth-name"
+                      className="block text-xs font-semibold text-slate-500 mb-1.5"
+                      style={{ fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      Full Name
+                    </label>
+                    <input
+                      id="auth-name"
+                      type="text"
+                      autoComplete="name"
+                      placeholder="Jane Smith"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required={isRegister}
+                      className={INPUT_CLASS}
+                      style={{ fontFamily: "'DM Sans', sans-serif" }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="auth-company"
+                      className="block text-xs font-semibold text-slate-500 mb-1.5"
+                      style={{ fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      Company / Brand Name
+                    </label>
+                    <input
+                      id="auth-company"
+                      type="text"
+                      autoComplete="organization"
+                      placeholder="Acme Inc."
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      required={isRegister}
+                      className={INPUT_CLASS}
+                      style={{ fontFamily: "'DM Sans', sans-serif" }}
+                    />
+                  </div>
+                </>
+              )}
 
-          {/* Submit button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-6 w-full py-3 rounded-full text-white text-sm font-bold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{
-              fontFamily: "'DM Sans', sans-serif",
-              background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
-              border: 'none',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              boxShadow: loading ? 'none' : '0 4px 20px rgba(139, 92, 246, 0.35)',
-              letterSpacing: '0.01em',
-            }}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg
-                  className="animate-spin h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
+              <div>
+                <label
+                  htmlFor="auth-email"
+                  className="block text-xs font-semibold text-slate-500 mb-1.5"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
                 >
-                  <circle
-                    className="opacity-25"
-                    cx="12" cy="12" r="10"
-                    stroke="currentColor" strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                {isRegister ? 'Creating account...' : 'Signing in...'}
-              </span>
-            ) : (
-              isRegister ? 'Create Account' : 'Sign In'
+                  Email Address
+                </label>
+                <input
+                  id="auth-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className={INPUT_CLASS}
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="auth-password"
+                  className="block text-xs font-semibold text-slate-500 mb-1.5"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  Password
+                </label>
+                <input
+                  id="auth-password"
+                  type="password"
+                  autoComplete={isRegister ? 'new-password' : 'current-password'}
+                  placeholder={isRegister ? 'Min. 8 characters' : '••••••••'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className={INPUT_CLASS}
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                />
+
+                {/* Forgot password link — sign-in mode only */}
+                {!isRegister && (
+                  <div className="mt-1.5 text-right">
+                    <button
+                      type="button"
+                      onClick={() => switchMode('reset')}
+                      className="text-xs text-violet-500 hover:text-violet-700 transition-colors"
+                      style={{ fontFamily: "'DM Sans', sans-serif", background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Error message */}
+            {error && (
+              <p
+                className="mt-4 text-sm text-red-500 text-center"
+                role="alert"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+              >
+                {error}
+              </p>
             )}
-          </button>
-        </form>
+
+            {/* Submit button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-6 w-full py-3 rounded-full text-white text-sm font-bold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: loading ? 'none' : '0 4px 20px rgba(139, 92, 246, 0.35)',
+                letterSpacing: '0.01em',
+              }}
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12" cy="12" r="10"
+                      stroke="currentColor" strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  {isRegister ? 'Creating account...' : 'Signing in...'}
+                </span>
+              ) : (
+                isRegister ? 'Create Account' : 'Sign In'
+              )}
+            </button>
+          </form>
+        )}
 
         {/* Footer note */}
         <p

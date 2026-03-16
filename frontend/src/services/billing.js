@@ -208,30 +208,64 @@ export async function createTrialSubscription(userId, planId = 1) {
   return { subscription, usage };
 }
 
-// ─── Stripe Placeholders ──────────────────────────────────────────────────────
+// ─── Stripe Integration ──────────────────────────────────────────────────────
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 /**
  * Initiate a Stripe Checkout session for the given price.
- * Returns null until the backend billing endpoint is wired up.
+ * Calls the stripe-checkout Edge Function.
  *
  * @param {string} priceId    — Stripe price ID (e.g. 'price_xxx')
  * @param {string} userId     — Supabase user ID
  * @param {string} userEmail  — Pre-fills the Stripe checkout form
- * @returns {null}
+ * @returns {{ url: string, sessionId: string } | null}
  */
 export async function createCheckoutSession(priceId, userId, userEmail) {
-  console.log('Stripe not configured yet', { priceId, userId, userEmail });
-  return null;
+  if (!priceId || !userId) return null;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/stripe-checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({
+        priceId,
+        userId,
+        userEmail: userEmail || '',
+        successUrl: `${window.location.origin}/billing?success=true`,
+        cancelUrl: `${window.location.origin}/billing?canceled=true`,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('[billing] createCheckoutSession error:', err.error || res.statusText);
+      return null;
+    }
+
+    const data = await res.json();
+    return data; // { url, sessionId }
+  } catch (err) {
+    console.error('[billing] createCheckoutSession fetch error:', err.message);
+    return null;
+  }
 }
 
 /**
  * Open the Stripe Customer Portal so the user can manage their subscription.
- * Returns null until the backend billing endpoint is wired up.
+ * Note: This requires a portal configuration in Stripe Dashboard.
+ * For now, redirects to the billing page with a message.
  *
  * @param {string} userId
  * @returns {null}
  */
 export async function createPortalSession(userId) {
-  console.log('Stripe portal not configured yet', { userId });
+  // Stripe Customer Portal requires a server-side session creation.
+  // This will be implemented as a separate Edge Function when needed.
+  console.log('[billing] Portal session requested for:', userId);
   return null;
 }

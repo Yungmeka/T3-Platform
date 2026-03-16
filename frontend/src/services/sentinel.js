@@ -9,12 +9,51 @@
  */
 
 import { supabase } from '../supabase';
+import { checkUsage } from './billing';
 
 const PLATFORMS = ['chatgpt', 'gemini', 'perplexity', 'copilot'];
 
+// ─── INTERNAL: Fetch with retry + timeout ────────────────────────────────────
+
+/**
+ * Wraps `fetch` with per-attempt timeouts and exponential-backoff retries on
+ * network errors or 5xx responses.
+ *
+ * @param {string} url
+ * @param {RequestInit} options
+ * @param {{ maxRetries?: number, timeoutMs?: number }} [config]
+ * @returns {Promise<Response>}
+ */
+async function fetchWithRetry(url, options, { maxRetries = 2, timeoutMs = 30000 } = {}) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) return res;
+      if (res.status >= 500 && attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        continue;
+      }
+      return res; // return non-5xx errors immediately
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+    }
+  }
+}
+
 // ─── MAIN PIPELINE: Full Brand Scan ─────────────────────────────────────────
 
-export async function runFullScan(brand) {
+export async function runFullScan(brand, userId = null) {
+  if (userId) {
+    const usage = await checkUsage(userId, 'scan');
+    if (!usage.allowed) {
+      return { error: 'Scan limit reached. Please upgrade your plan.', usage };
+    }
+  }
+
   const brandId = brand.id;
   const brandName = brand.name;
 
@@ -42,11 +81,18 @@ export async function runFullScan(brand) {
   };
 
   for (const query of queries) {
-    for (const platform of PLATFORMS) {
+    // Query all platforms concurrently for this query
+    await Promise.all(PLATFORMS.map(async (platform) => {
       try {
         // Query AI platform (real API call)
         const responseText = await queryAIPlatform(query.query_text, platform, brandName);
         results.queries_run++;
+
+        // Skip platform if query failed
+        if (responseText === null) {
+          results.details.push({ query: query.query_text, platform, error: 'Failed to query platform' });
+          return;
+        }
 
         // Save response to Supabase
         const { data: respData } = await supabase
@@ -105,7 +151,7 @@ export async function runFullScan(brand) {
       } catch (e) {
         results.details.push({ query: query.query_text, platform, error: e.message });
       }
-    }
+    }));
   }
 
   // Update daily analytics snapshot
@@ -117,45 +163,86 @@ export async function runFullScan(brand) {
 
 // ─── VISIBILITY SCAN: Single query across all platforms ──────────────────────
 
-export async function runVisibilityScan(queryText, brand) {
+export async function runVisibilityScan(queryText, brand, userId = null) {
+  if (userId) {
+    const usage = await checkUsage(userId, 'scan');
+    if (!usage.allowed) {
+      return { error: 'Scan limit reached. Please upgrade your plan.', usage };
+    }
+  }
+
   const brandName = brand.name;
 
   const { data: products } = await supabase
     .from('products').select('*').eq('brand_id', brand.id);
 
-  const platformResults = [];
   let platformsMentioned = 0;
   let totalHallucinations = 0;
   const allCompetitors = [];
 
-  for (const platform of PLATFORMS) {
-    const responseText = await queryAIPlatform(queryText, platform, brandName);
-    const inclusion = checkBrandInclusion(responseText, brandName);
-    if (inclusion.mentioned) platformsMentioned++;
+  // Query all platforms concurrently
+  const platformResults = await Promise.all(PLATFORMS.map(async (platform) => {
+    try {
+      const responseText = await queryAIPlatform(queryText, platform, brandName);
 
-    const claims = extractClaims(responseText, brandName);
-    const verified = verifyClaims(claims, products || [], brandName);
-    const hallucinated = verified.filter(c => c.status === 'hallucinated');
-    totalHallucinations += hallucinated.length;
-    allCompetitors.push(...inclusion.competitors);
+      // Skip platform if query failed
+      if (responseText === null) {
+        return {
+          platform,
+          response: null,
+          mentioned: false,
+          position: null,
+          rank: null,
+          competitors: [],
+          claims: [],
+          claim_summary: { total: 0, accurate: 0, hallucinated: 0 },
+          sources: [],
+          content_gaps: [],
+          error: 'Failed to query platform',
+        };
+      }
 
-    platformResults.push({
-      platform,
-      response: responseText,
-      mentioned: inclusion.mentioned,
-      position: inclusion.position,
-      rank: inclusion.rank,
-      competitors: inclusion.competitors,
-      claims: verified,
-      claim_summary: {
-        total: verified.length,
-        accurate: verified.filter(c => c.status === 'accurate').length,
-        hallucinated: hallucinated.length,
-      },
-      sources: guessSources(responseText, platform),
-      content_gaps: findContentGaps(verified, brandName),
-    });
-  }
+      const inclusion = checkBrandInclusion(responseText, brandName);
+      if (inclusion.mentioned) platformsMentioned++;
+
+      const claims = extractClaims(responseText, brandName);
+      const verified = verifyClaims(claims, products || [], brandName);
+      const hallucinated = verified.filter(c => c.status === 'hallucinated');
+      totalHallucinations += hallucinated.length;
+      allCompetitors.push(...inclusion.competitors);
+
+      return {
+        platform,
+        response: responseText,
+        mentioned: inclusion.mentioned,
+        position: inclusion.position,
+        rank: inclusion.rank,
+        competitors: inclusion.competitors,
+        claims: verified,
+        claim_summary: {
+          total: verified.length,
+          accurate: verified.filter(c => c.status === 'accurate').length,
+          hallucinated: hallucinated.length,
+        },
+        sources: guessSources(responseText, platform),
+        content_gaps: findContentGaps(verified, brandName),
+      };
+    } catch (e) {
+      return {
+        platform,
+        response: null,
+        mentioned: false,
+        position: null,
+        rank: null,
+        competitors: [],
+        claims: [],
+        claim_summary: { total: 0, accurate: 0, hallucinated: 0 },
+        sources: [],
+        content_gaps: [],
+        error: e.message,
+      };
+    }
+  }));
 
   // Store query if new
   const { data: existingQ } = await supabase
@@ -173,9 +260,9 @@ export async function runVisibilityScan(queryText, brand) {
     queryId = newQ?.id;
   }
 
-  // Store responses + claims
+  // Store responses + claims (skip platforms that failed)
   for (const pr of platformResults) {
-    if (queryId) {
+    if (queryId && pr.response !== null) {
       const { data: resp } = await supabase
         .from('ai_responses')
         .insert({ query_id: queryId, platform: pr.platform, response_text: pr.response })
@@ -224,27 +311,49 @@ export async function runVisibilityScan(queryText, brand) {
 
 // ─── LIVE QUERY: Single platform query ───────────────────────────────────────
 
-export async function runLiveQuery(queryText, platform, brand) {
+export async function runLiveQuery(queryText, brand, userId = null) {
+  if (userId) {
+    const usage = await checkUsage(userId, 'api_call');
+    if (!usage.allowed) {
+      return { error: 'API call limit reached. Please upgrade your plan.', usage };
+    }
+  }
+
   const brandName = brand.name;
   const { data: products } = await supabase
     .from('products').select('*').eq('brand_id', brand.id);
 
-  const responseText = await queryAIPlatform(queryText, platform, brandName);
-  const inclusion = checkBrandInclusion(responseText, brandName);
-  const claims = extractClaims(responseText, brandName);
-  const verified = verifyClaims(claims, products || [], brandName);
+  // Query all platforms concurrently
+  const platformResults = await Promise.all(PLATFORMS.map(async (platform) => {
+    const responseText = await queryAIPlatform(queryText, platform, brandName);
 
-  return {
-    platform,
-    response: responseText,
-    summary: {
-      total_claims: verified.length,
-      accurate: verified.filter(c => c.status === 'accurate').length,
-      hallucinated: verified.filter(c => c.status === 'hallucinated').length,
-      outdated: verified.filter(c => c.status === 'outdated').length,
-    },
-    claims: verified,
-  };
+    if (responseText === null) {
+      return {
+        platform,
+        response: 'Failed to query platform',
+        summary: { total_claims: 0, accurate: 0, hallucinated: 0, outdated: 0 },
+        claims: [],
+        error: true,
+      };
+    }
+
+    const claims = extractClaims(responseText, brandName);
+    const verified = verifyClaims(claims, products || [], brandName);
+
+    return {
+      platform,
+      response: responseText,
+      summary: {
+        total_claims: verified.length,
+        accurate: verified.filter(c => c.status === 'accurate').length,
+        hallucinated: verified.filter(c => c.status === 'hallucinated').length,
+        outdated: verified.filter(c => c.status === 'outdated').length,
+      },
+      claims: verified,
+    };
+  }));
+
+  return { platforms: platformResults };
 }
 
 
@@ -282,7 +391,13 @@ export function sentinelCheck(text, products, brandName, mode = 'block') {
 
 // ─── CONTENT GENERATION ─────────────────────────────────────────────────────
 
-export function generateContent(product, brandName, contentType) {
+export async function generateContent(product, brandName, contentType, userId = null) {
+  if (userId) {
+    const usage = await checkUsage(userId, 'content_gen');
+    if (!usage.allowed) {
+      return { error: 'Content generation limit reached. Please upgrade your plan.', usage };
+    }
+  }
   const name = product.name;
   const price = product.price || 0;
   const category = product.category || 'Product';
@@ -454,7 +569,13 @@ ${brandName} Partnerships`,
 }
 
 
-export function generateOptimizedContent(product, brandName) {
+export async function generateOptimizedContent(product, brandName, userId = null) {
+  if (userId) {
+    const usage = await checkUsage(userId, 'content_gen');
+    if (!usage.allowed) {
+      return { error: 'Content generation limit reached. Please upgrade your plan.', usage };
+    }
+  }
   const name = product.name;
   const price = product.price || 0;
   const category = product.category || 'Product';
@@ -508,7 +629,14 @@ export function generateOptimizedContent(product, brandName) {
 
 // ─── FACT CHECKER ───────────────────────────────────────────────────────────
 
-export async function factCheck(text, brand) {
+export async function factCheck(text, brand, userId = null) {
+  if (userId) {
+    const usage = await checkUsage(userId, 'api_call');
+    if (!usage.allowed) {
+      return { error: 'API call limit reached. Please upgrade your plan.', usage };
+    }
+  }
+
   // ── 1. Load ground truth from Supabase ────────────────────────────────────
   const { data: products } = await supabase
     .from('products').select('*').eq('brand_id', brand.id);
@@ -620,7 +748,7 @@ export async function factCheck(text, brand) {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    const res = await fetch(`${supabaseUrl}/functions/v1/fact-check`, {
+    const res = await fetchWithRetry(`${supabaseUrl}/functions/v1/fact-check`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -661,7 +789,7 @@ async function queryAIPlatform(queryText, platform, brandName) {
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/ai-query`, {
+    const res = await fetchWithRetry(`${supabaseUrl}/functions/v1/ai-query`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -669,11 +797,17 @@ async function queryAIPlatform(queryText, platform, brandName) {
       },
       body: JSON.stringify({ queryText, platform, brandName }),
     });
+
+    if (!res.ok) {
+      console.error(`[queryAIPlatform] ${platform} returned HTTP ${res.status}`);
+      return null;
+    }
+
     const data = await res.json();
     return data.response || `No information found about ${brandName}`;
   } catch (error) {
     console.error(`[queryAIPlatform] ${platform} failed:`, error);
-    return `[Error] Could not query ${platform} for ${brandName}. Please try again.`;
+    return null;
   }
 }
 
@@ -988,7 +1122,11 @@ async function updateDailySnapshot(brandId, scanResults) {
   const totalMentions = scanResults.details.filter(d => d.brand_mentioned).length;
   const totalClaims = scanResults.claims_extracted || 0;
   const hallucinated = scanResults.hallucinations_found || 0;
-  const accurate = totalClaims - hallucinated;
+  // Count actual accurate claims rather than inferring from total - hallucinated
+  const accurate = scanResults.details.reduce((sum, d) => {
+    if (!d.claims) return sum;
+    return sum + d.claims.filter(c => c.status === 'accurate').length;
+  }, 0);
 
   const inclusionRate = totalQueries > 0 ? Math.round((totalMentions / totalQueries) * 1000) / 10 : 0;
   const accuracyScore = totalClaims > 0 ? Math.round((accurate / totalClaims) * 1000) / 10 : 0;

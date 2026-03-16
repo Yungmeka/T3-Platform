@@ -20,6 +20,8 @@ import Integrations from './components/Integrations';
 import ApiKeys from './components/ApiKeys';
 import Webhooks from './components/Webhooks';
 import FullPipeline from './components/FullPipeline';
+import Billing from './components/Billing';
+import Onboarding from './components/Onboarding';
 
 const pageLabels = {
   visibility: 'Visibility Scan',
@@ -38,6 +40,7 @@ const pageLabels = {
   integrations: 'Integrations',
   apikeys: 'API Keys',
   webhooks: 'Webhooks',
+  billing: 'Billing',
 };
 
 function App() {
@@ -109,6 +112,18 @@ function App() {
     return <LandingPage onGetStarted={() => setShowAuth(true)} />;
   }
 
+  // New user with no brands → Onboarding
+  if (brands.length === 0 && !session.user.user_metadata?.onboarding_complete) {
+    return (
+      <Onboarding
+        session={session}
+        onComplete={() => {
+          fetchBrands();
+        }}
+      />
+    );
+  }
+
   // Session but no brand selected → Home page
   if (!selectedBrand) {
     return (
@@ -140,6 +155,7 @@ function App() {
     integrations: Integrations,
     apikeys: ApiKeys,
     webhooks: Webhooks,
+    billing: Billing,
   };
 
   const ActivePage = pages[activeTab] || Dashboard;

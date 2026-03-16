@@ -225,7 +225,7 @@ function Navbar({ onGetStarted }) {
 
       {/* Nav links (desktop only) */}
       <div className="hidden md:flex items-center gap-8">
-        {['Why T3', 'How It Works', 'Features'].map((label) => (
+        {['Why T3', 'How It Works', 'Features', 'Pricing'].map((label) => (
           <a
             key={label}
             href={`#${label.toLowerCase().replace(/\s+/g, '-')}`}
@@ -1850,6 +1850,421 @@ function StatsSection() {
 /* ─────────────────────────────────────────────
    SECTION: FINAL CTA
 ───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────
+   SECTION: PRICING
+───────────────────────────────────────────── */
+const PRICING_TIERS = [
+  {
+    name: 'Starter',
+    price: '$49',
+    period: '/mo',
+    description: 'Perfect for individuals and small teams getting started.',
+    features: [
+      '1 Brand',
+      '50 AI Scans/month',
+      '500 API Calls',
+      '20 Content Generations',
+      'Email Support',
+    ],
+    cta: 'Get Started',
+    popular: false,
+    accentColor: '#7C3AED',
+  },
+  {
+    name: 'Growth',
+    price: '$149',
+    period: '/mo',
+    description: 'For growing brands that need deeper AI visibility.',
+    features: [
+      '5 Brands',
+      '200 AI Scans/month',
+      '2,000 API Calls',
+      '100 Content Generations',
+      'Sentinel API Access',
+      'Priority Support',
+    ],
+    cta: 'Get Started',
+    popular: true,
+    accentColor: '#F97316',
+  },
+  {
+    name: 'Enterprise',
+    price: '$499',
+    period: '/mo',
+    description: 'Full-scale protection and integrations for large teams.',
+    features: [
+      'Unlimited Brands',
+      'Unlimited Scans',
+      '10,000 API Calls',
+      'Unlimited Content',
+      'Sentinel API + Webhooks',
+      'Dedicated Support',
+      'Custom Integrations',
+    ],
+    cta: 'Contact Sales',
+    popular: false,
+    accentColor: '#7C3AED',
+  },
+];
+
+function CheckIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+      style={{ flexShrink: 0, marginTop: '1px' }}
+    >
+      <circle cx="8" cy="8" r="8" fill="rgba(124,58,237,0.12)" />
+      <path
+        d="M4.5 8.5L6.5 10.5L11.5 5.5"
+        stroke="#7C3AED"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PricingCard({ tier, onGetStarted }) {
+  const [hovered, setHovered] = useState(false);
+
+  const cardStyle = tier.popular
+    ? {
+        background: 'linear-gradient(160deg, #1E0A3C 0%, #2D0A4E 60%, #1A0530 100%)',
+        borderRadius: '24px',
+        border: '2px solid rgba(249,115,22,0.50)',
+        boxShadow: hovered
+          ? '0 24px 60px rgba(124,58,237,0.45), 0 8px 24px rgba(249,115,22,0.25)'
+          : '0 16px 48px rgba(124,58,237,0.35), 0 4px 16px rgba(249,115,22,0.18)',
+        transform: hovered ? 'translateY(-6px) scale(1.02)' : 'translateY(-4px) scale(1.01)',
+        transition: 'all 0.28s ease',
+        padding: '36px 32px',
+        position: 'relative',
+        zIndex: 2,
+        flex: '0 0 auto',
+        width: '100%',
+      }
+    : {
+        background: '#FFFFFF',
+        borderRadius: '20px',
+        border: '1px solid rgba(124,58,237,0.10)',
+        boxShadow: hovered
+          ? '0 12px 36px rgba(0,0,0,0.10)'
+          : '0 4px 20px rgba(0,0,0,0.06)',
+        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+        transition: 'all 0.25s ease',
+        padding: '36px 32px',
+        position: 'relative',
+        flex: '0 0 auto',
+        width: '100%',
+      };
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={cardStyle}
+    >
+      {/* Popular badge */}
+      {tier.popular && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '-14px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: GRAD,
+            borderRadius: '999px',
+            padding: '4px 18px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+          }}
+        >
+          <span style={{ fontFamily: FONT_BODY, fontSize: '11px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
+            Most Popular
+          </span>
+        </div>
+      )}
+
+      {/* Tier name */}
+      <div style={{ marginBottom: '8px' }}>
+        <span
+          style={{
+            fontFamily: FONT_BODY,
+            fontSize: '12px',
+            fontWeight: 700,
+            letterSpacing: '0.10em',
+            textTransform: 'uppercase',
+            color: tier.popular ? 'rgba(253,186,116,0.90)' : '#7C3AED',
+          }}
+        >
+          {tier.name}
+        </span>
+      </div>
+
+      {/* Price */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', marginBottom: '12px' }}>
+        <span
+          style={{
+            fontFamily: FONT_HEAD,
+            fontWeight: 800,
+            fontSize: '48px',
+            letterSpacing: '-0.04em',
+            lineHeight: 1,
+            color: tier.popular ? '#FFFFFF' : '#0F172A',
+          }}
+        >
+          {tier.price}
+        </span>
+        <span
+          style={{
+            fontFamily: FONT_BODY,
+            fontSize: '16px',
+            fontWeight: 500,
+            color: tier.popular ? 'rgba(255,255,255,0.55)' : '#94A3B8',
+            marginBottom: '6px',
+          }}
+        >
+          {tier.period}
+        </span>
+      </div>
+
+      {/* Description */}
+      <p
+        style={{
+          fontFamily: FONT_BODY,
+          fontSize: '14px',
+          color: tier.popular ? 'rgba(255,255,255,0.60)' : '#64748B',
+          lineHeight: 1.6,
+          margin: '0 0 28px',
+        }}
+      >
+        {tier.description}
+      </p>
+
+      {/* Divider */}
+      <div
+        style={{
+          height: '1px',
+          background: tier.popular ? 'rgba(255,255,255,0.10)' : 'rgba(124,58,237,0.08)',
+          marginBottom: '24px',
+        }}
+      />
+
+      {/* Feature list */}
+      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {tier.features.map((feature) => (
+          <li key={feature} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+              style={{ flexShrink: 0, marginTop: '2px' }}
+            >
+              <circle cx="8" cy="8" r="8" fill={tier.popular ? 'rgba(249,115,22,0.22)' : 'rgba(124,58,237,0.10)'} />
+              <path
+                d="M4.5 8.5L6.5 10.5L11.5 5.5"
+                stroke={tier.popular ? '#FB923C' : '#7C3AED'}
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span
+              style={{
+                fontFamily: FONT_BODY,
+                fontSize: '14px',
+                fontWeight: 500,
+                color: tier.popular ? 'rgba(255,255,255,0.85)' : '#334155',
+                lineHeight: 1.5,
+              }}
+            >
+              {feature}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {/* CTA button */}
+      <button
+        onClick={onGetStarted}
+        style={{
+          width: '100%',
+          padding: '14px 24px',
+          borderRadius: '999px',
+          border: tier.popular ? 'none' : '2px solid rgba(124,58,237,0.25)',
+          background: tier.popular ? GRAD : 'transparent',
+          color: tier.popular ? '#FFFFFF' : '#7C3AED',
+          fontFamily: FONT_BODY,
+          fontSize: '15px',
+          fontWeight: 700,
+          cursor: 'pointer',
+          letterSpacing: '0.01em',
+          transition: 'all 0.22s ease',
+          boxShadow: tier.popular
+            ? '0 6px 24px rgba(249,115,22,0.30), 0 4px 16px rgba(124,58,237,0.22)'
+            : 'none',
+        }}
+        onMouseEnter={(e) => {
+          if (tier.popular) {
+            e.currentTarget.style.opacity = '0.90';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 10px 32px rgba(249,115,22,0.40), 0 6px 20px rgba(124,58,237,0.28)';
+          } else {
+            e.currentTarget.style.background = 'rgba(124,58,237,0.07)';
+            e.currentTarget.style.borderColor = '#7C3AED';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (tier.popular) {
+            e.currentTarget.style.opacity = '1';
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 6px 24px rgba(249,115,22,0.30), 0 4px 16px rgba(124,58,237,0.22)';
+          } else {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.borderColor = 'rgba(124,58,237,0.25)';
+          }
+        }}
+      >
+        {tier.cta}
+      </button>
+    </div>
+  );
+}
+
+function PricingSection({ onGetStarted }) {
+  const [ref, inView] = useInView();
+
+  return (
+    <section
+      id="pricing"
+      style={{
+        position: 'relative',
+        padding: '100px 24px 120px',
+        background: '#F5F7FA',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Decorative blobs */}
+      <Blob style={{ top: '-60px', left: '5%', width: '480px', height: '480px', background: 'rgba(124,58,237,0.07)' }} />
+      <Blob style={{ bottom: '-80px', right: '5%', width: '420px', height: '420px', background: 'rgba(249,115,22,0.06)' }} />
+
+      <div
+        ref={ref}
+        style={{
+          maxWidth: '1100px',
+          margin: '0 auto',
+          position: 'relative',
+          zIndex: 2,
+          opacity: inView ? 1 : 0,
+          transition: 'opacity 0.6s ease, transform 0.6s ease',
+          transform: inView ? 'translateY(0)' : 'translateY(20px)',
+        }}
+      >
+        {/* Section header */}
+        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <div
+            style={{
+              display: 'inline-block',
+              background: 'linear-gradient(135deg, rgba(124,58,237,0.08), rgba(249,115,22,0.06))',
+              border: '1px solid rgba(124,58,237,0.18)',
+              borderRadius: '999px',
+              padding: '5px 16px',
+              marginBottom: '20px',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: FONT_BODY,
+                fontSize: '12px',
+                fontWeight: 700,
+                color: '#7C3AED',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Pricing
+            </span>
+          </div>
+
+          <h2
+            style={{
+              fontFamily: FONT_HEAD,
+              fontWeight: 800,
+              fontSize: 'clamp(28px, 4vw, 48px)',
+              letterSpacing: '-0.03em',
+              color: '#0F172A',
+              lineHeight: 1.15,
+              margin: '0 auto 16px',
+              maxWidth: '640px',
+            }}
+          >
+            Simple,{' '}
+            <span
+              style={{
+                background: GRAD,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              Transparent
+            </span>{' '}
+            Pricing
+          </h2>
+
+          <p
+            style={{
+              fontFamily: FONT_BODY,
+              fontSize: '17px',
+              color: '#64748B',
+              lineHeight: 1.65,
+              maxWidth: '520px',
+              margin: '0 auto',
+            }}
+          >
+            Start free, scale as you grow. No hidden fees, no surprises.
+          </p>
+        </div>
+
+        {/* Cards grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+            gap: '24px',
+            alignItems: 'center',
+          }}
+        >
+          {PRICING_TIERS.map((tier) => (
+            <PricingCard key={tier.name} tier={tier} onGetStarted={onGetStarted} />
+          ))}
+        </div>
+
+        {/* Footer note */}
+        <p
+          style={{
+            textAlign: 'center',
+            fontFamily: FONT_BODY,
+            fontSize: '13px',
+            color: '#94A3B8',
+            marginTop: '40px',
+          }}
+        >
+          All plans include a 14-day free trial. No credit card required.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function CTASection({ onGetStarted }) {
   const [ref, inView] = useInView();
 
@@ -2209,6 +2624,7 @@ export default function LandingPage({ onGetStarted }) {
       <GlobeSection />
       <FeaturesSection />
       <StatsSection />
+      <PricingSection onGetStarted={handleGetStarted} />
       <CTASection onGetStarted={handleGetStarted} />
       <Footer onGetStarted={handleGetStarted} />
     </div>

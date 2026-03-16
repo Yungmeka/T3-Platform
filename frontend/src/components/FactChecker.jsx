@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { factCheck } from '../services/sentinel';
 
 const statusColors = {
   verified:        { bg: 'bg-emerald-50',  border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-50 border border-emerald-200 text-emerald-700' },
@@ -84,17 +85,7 @@ export default function FactChecker({ brand }) {
     if (!input.trim()) return;
     setLoading(true);
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const res = await fetch(`${supabaseUrl}/functions/v1/fact-check`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-        body: JSON.stringify({ text: input, brandName: brand?.name || '' }),
-      });
-      const data = await res.json();
+      const data = await factCheck(input, brand);
       setResult(data);
     } catch (err) {
       console.error('Fact check error:', err);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { generateContent, generateOptimizedContent } from '../services/sentinel';
 
 const contentTypes = [
   { id: 'schema', name: 'Schema.org', desc: 'JSON-LD markup for AI crawlers', color: 'cyan' },
@@ -38,14 +39,7 @@ export default function ContentGenerator({ brand }) {
     setActionLoading(true);
     setActionResult(null);
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const res = await fetch(`${supabaseUrl}/functions/v1/generate-content`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-        body: JSON.stringify({ product: selectedProduct, brandName: brand.name, contentType: activeType }),
-      });
-      const data = await res.json();
+      const data = generateContent(selectedProduct, brand.name, activeType);
       setActionResult(data);
     } catch (err) {
       console.error('Content generation error:', err);
@@ -58,29 +52,8 @@ export default function ContentGenerator({ brand }) {
     if (!selectedProduct) return;
     setLoading(true);
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const res = await fetch(`${supabaseUrl}/functions/v1/generate-content`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-        body: JSON.stringify({ product: selectedProduct, brandName: brand.name, contentType: 'schema' }),
-      });
-      const data = await res.json();
-      setResult({
-        generated_content: {
-          optimized_description: data.content,
-          schema_jsonld: {},
-          faq_content: [],
-          key_phrases: [`${selectedProduct.name} price`, `${brand.name} ${selectedProduct.category || 'products'}`, `buy ${selectedProduct.name}`, `${selectedProduct.name} review`],
-          content_recommendations: [
-            `Add schema.org Product markup to ${selectedProduct.name} page`,
-            'Create FAQ schema for common shopping queries',
-            'Publish press release for product updates',
-            'Create Reddit community content for organic visibility',
-          ],
-        },
-        validation: { valid: true, steps_completed: ['Fact-checked against product database', 'Verified pricing and availability', 'Optimized for AI discoverability'], issues: [] },
-      });
+      const data = generateOptimizedContent(selectedProduct, brand.name);
+      setResult(data);
     } catch (err) {
       console.error('Optimize error:', err);
       setResult({ error: 'Optimization failed. Please try again.' });

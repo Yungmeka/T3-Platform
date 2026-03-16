@@ -241,8 +241,8 @@ function PlanCard({ plan, isCurrent, onAction, actionLoading }) {
   const isPopular = plan.name?.toLowerCase().includes('pro') ||
     plan.name?.toLowerCase().includes('growth');
 
-  // Determine relative tier from price.
-  const price = safeNum(plan.price_monthly);
+  // Determine relative tier from price (stored in cents).
+  const price = safeNum(plan.price_monthly) / 100;
 
   // Parse features stored as JSON array or newline-delimited text.
   let features = [];
@@ -319,7 +319,7 @@ function PlanCard({ plan, isCurrent, onAction, actionLoading }) {
         className="text-lg font-bold text-slate-900 mb-1"
         style={{ fontFamily: 'Outfit, sans-serif' }}
       >
-        {plan.name ?? 'Unnamed Plan'}
+        {plan.display_name ?? plan.name ?? 'Unnamed Plan'}
       </h3>
 
       {/* Price */}
@@ -536,11 +536,11 @@ export default function Billing({ brand }) {
 
   const scanUsed = safeNum(usage?.scans_used);
   const apiUsed = safeNum(usage?.api_calls_used);
-  const contentUsed = safeNum(usage?.content_gens_used);
+  const contentUsed = safeNum(usage?.content_gen_used);
 
-  const scanLimit = plan?.scan_limit ?? null;
-  const apiLimit = plan?.api_call_limit ?? null;
-  const contentLimit = plan?.content_gen_limit ?? null;
+  const scanLimit = plan?.max_scans ?? null;
+  const apiLimit = plan?.max_api_calls ?? null;
+  const contentLimit = plan?.max_content_gen ?? null;
 
   const trialDays = subscription?.status === 'trialing'
     ? daysRemaining(subscription?.trial_end ?? subscription?.current_period_end)
@@ -803,7 +803,7 @@ export default function Billing({ brand }) {
                   className="text-sm font-semibold text-slate-700"
                   style={{ fontFamily: 'DM Sans, sans-serif' }}
                 >
-                  ${safeNum(plan.price_monthly).toLocaleString()} / month
+                  ${(safeNum(plan.price_monthly) / 100).toLocaleString()} / month
                 </span>
               )}
             </div>
@@ -1012,13 +1012,13 @@ export default function Billing({ brand }) {
                 className="text-sm font-bold"
                 style={{ color: '#7C3AED', fontFamily: 'Outfit, sans-serif' }}
               >
-                ${safeNum(plan.price_monthly).toLocaleString()} / month
+                ${(safeNum(plan.price_monthly) / 100).toLocaleString()} / month
               </span>
               <span
                 className="text-xs text-slate-400"
                 style={{ fontFamily: 'DM Sans, sans-serif' }}
               >
-                {plan?.name}
+                {plan?.display_name ?? plan?.name}
               </span>
             </div>
           )}

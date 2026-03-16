@@ -275,10 +275,11 @@ function VisibilityActionPlan({ brand, latest, onNavigate }) {
       setLoading(true);
 
       // Fetch distinct platforms from ai_responses for this brand
+      // ai_responses has no brand_id — join through queries table
       const { data: responses } = await supabase
         .from('ai_responses')
-        .select('platform')
-        .eq('brand_id', brand.id);
+        .select('platform, queries!inner(target_brand_id)')
+        .eq('queries.target_brand_id', brand.id);
 
       const seenPlatforms = new Set(
         (responses || []).map((r) => (r.platform || '').toLowerCase())

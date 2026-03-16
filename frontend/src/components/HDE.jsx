@@ -302,7 +302,7 @@ export default function HDE({ brand }) {
                         {h.status?.toUpperCase()}
                       </span>
                       <span className="text-[10px] uppercase font-medium" style={{ color: '#64748B' }}>{h.type}</span>
-                      <span className="text-[10px] ml-auto" style={{ color: '#94A3B8' }}>{h.product}</span>
+                      <span className="text-[10px] ml-auto" style={{ color: '#94A3B8' }}>{h.ground_truth || ''}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>

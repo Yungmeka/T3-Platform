@@ -155,7 +155,7 @@ export async function getUsageStats(userId) {
  * @param {string} userId
  * @returns {{ subscription: object, usage: object } | null}
  */
-export async function createTrialSubscription(userId) {
+export async function createTrialSubscription(userId, planId = 1) {
   if (!userId) return null;
 
   const now = new Date();
@@ -170,11 +170,10 @@ export async function createTrialSubscription(userId) {
     .from('subscriptions')
     .insert({
       user_id: userId,
-      plan_id: 1, // Starter plan
+      plan_id: planId, // defaults to Starter plan (1)
       status: 'trialing',
       current_period_start: periodStart,
       current_period_end: periodEnd,
-      trial_end: periodEnd,
       cancel_at_period_end: false,
     })
     .select()
@@ -190,12 +189,11 @@ export async function createTrialSubscription(userId) {
     .from('usage_records')
     .insert({
       user_id: userId,
-      subscription_id: subscription.id,
       period_start: periodStart,
       period_end: periodEnd,
       scans_used: 0,
       api_calls_used: 0,
-      content_gens_used: 0,
+      content_gen_used: 0,
     })
     .select()
     .single();

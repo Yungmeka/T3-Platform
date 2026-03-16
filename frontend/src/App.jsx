@@ -117,7 +117,8 @@ function App() {
     return (
       <Onboarding
         session={session}
-        onComplete={() => {
+        onComplete={async () => {
+          await supabase.auth.updateUser({ data: { onboarding_complete: true } });
           fetchBrands();
         }}
       />

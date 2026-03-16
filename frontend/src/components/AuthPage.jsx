@@ -42,20 +42,12 @@ export default function AuthPage({ onBack }) {
           setLoading(false);
           return;
         }
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { full_name: name, company_name: companyName } },
         });
         if (signUpError) throw signUpError;
-
-        // Create the brand in the database for this new user
-        if (signUpData?.user) {
-          await supabase.from('brands').insert({
-            name: companyName.trim(),
-            user_id: signUpData.user.id,
-          });
-        }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,

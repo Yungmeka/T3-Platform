@@ -407,7 +407,7 @@ function StepChoosePlan({ session, onNext }) {
 // ─── Step 2: Add Your Brand ───────────────────────────────────────────────────
 
 function StepAddBrand({ session, onNext }) {
-  const [brandName, setBrandName] = useState('');
+  const [brandName, setBrandName] = useState(session?.user?.user_metadata?.company_name || '');
   const [website, setWebsite] = useState('');
   const [industry, setIndustry] = useState('');
   const [loading, setLoading] = useState(false);
@@ -868,9 +868,22 @@ export default function Onboarding({ session, onComplete }) {
         {step === 0 && <StepWelcome onNext={() => setStep(1)} />}
         {step === 1 && <StepChoosePlan session={session} onNext={() => setStep(2)} />}
         {step === 2 && <StepAddBrand session={session} onNext={goNext} />}
-        {step === 3 && createdBrand && (
+        {step === 3 && createdBrand ? (
           <StepFirstScan brand={createdBrand} onComplete={onComplete} />
-        )}
+        ) : step === 3 && !createdBrand ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-slate-500 mb-4" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              Something went wrong creating your brand. Please try again.
+            </p>
+            <button
+              onClick={() => setStep(2)}
+              className="px-6 py-2.5 rounded-full text-sm font-bold text-white"
+              style={{ background: 'linear-gradient(135deg, #7C3AED, #EC4899)', border: 'none', cursor: 'pointer' }}
+            >
+              Go Back
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

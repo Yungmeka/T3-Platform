@@ -508,46 +508,148 @@ export function generateOptimizedContent(product, brandName) {
 
 // ─── FACT CHECKER ───────────────────────────────────────────────────────────
 
-export function factCheck(text, brand) {
-  // Extract any price claims
-  const priceClaims = [...text.matchAll(/\$(\d+(?:\.\d{2})?)/g)];
+export async function factCheck(text, brand) {
+  // ── 1. Load ground truth from Supabase ────────────────────────────────────
+  const { data: products } = await supabase
+    .from('products').select('*').eq('brand_id', brand.id);
+
+  const groundTruth = products || [];
   const claims = [];
-  let trustScore = 70;
 
-  priceClaims.forEach(match => {
-    const context = text.slice(Math.max(0, match.index - 40), match.index + match[0].length + 40);
-    claims.push({
-      claim: context.trim(),
-      status: Math.random() > 0.5 ? 'verified' : 'hallucinated',
-      explanation: `Price $${match[1]} found in text — verify against current retail pricing`,
-      suggestion: 'Check the official website for current pricing',
-    });
-  });
+  // ── 2. Extract and verify price claims ────────────────────────────────────
+  const priceRe = /\$[\d,]+(?:\.\d{2})?/g;
+  for (const match of text.matchAll(priceRe)) {
+    const context = text.slice(Math.max(0, match.index - 40), match.index + match[0].length + 40).trim();
+    const claimedPrice = parseFloat(match[0].replace(/[$,]/g, ''));
 
-  // Add generic claims
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
-  sentences.slice(0, 3).forEach(s => {
-    claims.push({
-      claim: s.trim(),
-      status: 'verified',
-      explanation: 'General product information appears consistent with known data',
-      suggestion: 'This appears accurate',
-    });
-  });
+    let status = 'unverified';
+    let groundTruthValue = '';
+    let explanation = `Price ${match[0]} found in text — no matching product in database`;
+    let suggestion = 'Check the official website for current pricing';
 
+    for (const product of groundTruth) {
+      const actualPrice = parseFloat(product.price);
+      if (isNaN(actualPrice)) continue;
+
+      const productWords = product.name.toLowerCase().split(/\s+/);
+      const contextLower = context.toLowerCase();
+      const nameMatches = productWords.some(w => w.length > 2 && contextLower.includes(w));
+
+      if (nameMatches) {
+        groundTruthValue = `$${actualPrice}`;
+        if (Math.abs(claimedPrice - actualPrice) < 1) {
+          status = 'verified';
+          explanation = `Price ${match[0]} matches ${product.name} (actual: $${actualPrice})`;
+          suggestion = 'This price is accurate';
+        } else {
+          status = 'hallucinated';
+          explanation = `Price ${match[0]} does not match ${product.name} (actual: $${actualPrice})`;
+          suggestion = `Correct price is $${actualPrice}`;
+        }
+        break;
+      }
+    }
+
+    claims.push({ claim: context, status, explanation, suggestion, groundTruthValue });
+  }
+
+  // ── 3. Extract and verify feature claims ─────────────────────────────────
+  const featurePatterns = [
+    /\d+\s*GB\s*(?:DDR\d\s*)?RAM/gi,
+    /\d+\s*(?:GB|TB)\s*SSD/gi,
+    /\d+(?:\.\d+)?[- ]inch/gi,
+  ];
+
+  for (const pattern of featurePatterns) {
+    for (const match of text.matchAll(pattern)) {
+      const extracted = match[0].toLowerCase();
+      const context = text.slice(Math.max(0, match.index - 40), match.index + match[0].length + 40).trim();
+
+      let status = 'unverified';
+      let groundTruthValue = '';
+      let explanation = `Feature "${match[0]}" found in text — no matching product in database`;
+      let suggestion = 'Verify this specification against official product documentation';
+
+      for (const product of groundTruth) {
+        let features = product.features || [];
+        if (typeof features === 'string') {
+          try { features = JSON.parse(features); } catch { features = []; }
+        }
+        const featuresLower = (Array.isArray(features) ? features : Object.values(features))
+          .map(f => String(f).toLowerCase());
+
+        const matchedFeature = featuresLower.find(f => extracted.includes(f) || f.includes(extracted));
+        const nameInContext = product.name.toLowerCase().split(/\s+/)
+          .some(w => w.length > 2 && context.toLowerCase().includes(w));
+
+        if (matchedFeature) {
+          groundTruthValue = matchedFeature;
+          status = 'verified';
+          explanation = `Feature "${match[0]}" matches product data for ${product.name}`;
+          suggestion = 'This specification is accurate';
+          break;
+        } else if (nameInContext) {
+          // Product name mentioned near the feature but feature not in its spec list
+          status = 'hallucinated';
+          explanation = `Feature "${match[0]}" not found in specs for ${product.name}`;
+          suggestion = 'Verify this specification — it may be inaccurate';
+          break;
+        }
+      }
+
+      claims.push({ claim: context, status, explanation, suggestion, groundTruthValue });
+    }
+  }
+
+  // ── 4. Calculate trust_score from verified / total ratio ──────────────────
+  const total = claims.length;
+  const verifiedCount = claims.filter(c => c.status === 'verified').length;
   const halCount = claims.filter(c => c.status === 'hallucinated').length;
-  trustScore = Math.max(20, 100 - (halCount * 20));
 
+  let trustScore;
+  if (total === 0) {
+    trustScore = 70; // no verifiable claims found — neutral default
+  } else {
+    trustScore = Math.round((verifiedCount / total) * 100);
+    trustScore = Math.max(0, trustScore - halCount * 10); // penalise hallucinations
+  }
+
+  // ── 5. Attempt AI-powered enrichment via Edge Function ────────────────────
+  let aiAnalysis = null;
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/fact-check`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({ text, brand, claims }),
+    });
+
+    if (res.ok) {
+      aiAnalysis = await res.json();
+    }
+  } catch (err) {
+    console.warn('[factCheck] Edge Function unavailable, using local verification only:', err.message);
+  }
+
+  // ── 6. Build final result (local verification is authoritative) ───────────
   return {
-    trust_score: trustScore,
-    summary: `Found ${claims.length} claims. ${halCount} potential issues detected.`,
+    trust_score: aiAnalysis?.trust_score ?? trustScore,
+    summary: `Found ${total} verifiable claim${total !== 1 ? 's' : ''}. ${halCount} potential issue${halCount !== 1 ? 's' : ''} detected.`,
     red_flags: halCount > 0
       ? claims.filter(c => c.status === 'hallucinated').map(c => c.claim)
       : ['No major red flags detected'],
     overall_advice: halCount > 0
-      ? 'Verify pricing and specific claims before relying on this information.'
-      : 'This recommendation appears largely accurate. Always verify prices before purchasing.',
+      ? 'One or more claims contradict verified product data. Review highlighted issues before relying on this information.'
+      : total === 0
+        ? 'No verifiable price or feature claims were found in this text.'
+        : 'All verifiable claims match the product database. Always confirm prices before purchasing.',
     claims,
+    ai_analysis: aiAnalysis ?? null,
   };
 }
 
@@ -710,15 +812,143 @@ function verifyFeature(claim, products) {
 // ─── INTERNAL: Source guessing ──────────────────────────────────────────────
 
 function guessSources(responseText, platform) {
-  const sources = [];
-  if (responseText.includes('Sources:') || responseText.includes('sources:')) {
-    sources.push({ name: 'Cited web sources', reasoning: 'Response includes source citations', confidence: 0.9 });
+  // ── Pattern definitions ──────────────────────────────────────────────────
+  const CITATION_RE   = /(\[\d+\]|\[Source:[^\]]+\]|According to [A-Z][^,.]{2,40}[,.]|Based on [A-Z][^,.]{2,40}[,.])/g;
+  const URL_RE        = /https?:\/\/[^\s)>\]"']+/g;
+  const REVIEW_RE     = /\b(reviewers?\s(?:say|report|note)|users?\s(?:say|report|note)|rated?\b|[\d.]+\s*(?:out of\s*)?\d*\s*stars?|customer reviews?|top[\s-]rated)\b/gi;
+  const OFFICIAL_RE   = /\b(official\s(?:website|site|page|source)|manufacturer(?:'s)?|according to [A-Z][a-z]+(?:'s)?|[A-Z][a-z]+'s\sofficial)\b/g;
+  const COMPARISON_RE = /\b(top\s*(?:\d+|ten|five)|best\sof|vs\.?|versus|\bcompared?\sto\b|head[\s-]to[\s-]head|side[\s-]by[\s-]side|ranking|ranked)\b/gi;
+  const SOCIAL_RE     = /\b(Reddit|Redditors?|subreddit|forum|community|users?\son|Discord|Quora|Stack\s(?:Overflow|Exchange))\b/g;
+  const PRODUCT_DB_RE = /\b(spec(?:ification)?s?|dimensions?|weight|model\s(?:number|no\.?)|SKU|UPC|EAN|ASIN|part\snumber|technical\s(?:specs?|details?))\b/gi;
+
+  const FRESH_CURRENT_RE  = /\b(2025|2026|as\sof\s\d{4}|updated\s(?:in\s)?\d{4}|latest|current(?:ly)?|this\syear)\b/gi;
+  const FRESH_RECENT_RE   = /\b(2023|2024|recently|last\syear|past\s(?:year|months?)|new(?:ly)?)\b/gi;
+  const FRESH_OUTDATED_RE = /\b(20(?:0\d|1\d|22)|(?:several|many)\syears?\sago|historically|originally)\b/gi;
+
+  // ── Helper: collect up to `cap` non-overlapping matches ─────────────────
+  function collectMatches(re, cap = 5) {
+    const results = [];
+    let m;
+    const r = new RegExp(re.source, re.flags);
+    while ((m = r.exec(responseText)) !== null && results.length < cap) {
+      results.push(m[0].trim());
+    }
+    return results;
   }
-  if (platform === 'perplexity') {
-    sources.push({ name: 'Web search results', reasoning: 'Perplexity searches the web in real-time', confidence: 0.95 });
+
+  const citationMatches   = collectMatches(CITATION_RE);
+  const urlMatches        = collectMatches(URL_RE);
+  const reviewMatches     = collectMatches(REVIEW_RE);
+  const officialMatches   = collectMatches(OFFICIAL_RE);
+  const comparisonMatches = collectMatches(COMPARISON_RE);
+  const socialMatches     = collectMatches(SOCIAL_RE);
+  const productDbMatches  = collectMatches(PRODUCT_DB_RE);
+
+  // ── Freshness ────────────────────────────────────────────────────────────
+  function deriveFreshness() {
+    if (collectMatches(FRESH_CURRENT_RE, 1).length  > 0) return 'current';
+    if (collectMatches(FRESH_RECENT_RE, 1).length   > 0) return 'recent';
+    if (collectMatches(FRESH_OUTDATED_RE, 1).length > 0) return 'outdated';
+    return 'unknown';
   }
-  sources.push({ name: 'AI training data', reasoning: `${platform} general knowledge`, confidence: 0.7 });
-  return sources;
+  const freshness = deriveFreshness();
+
+  // ── Platform-specific confidence multipliers ─────────────────────────────
+  // Perplexity  — retrieval-augmented; strong citation/URL signal
+  // ChatGPT     — relies heavily on training data; general knowledge boosted
+  // Gemini      — good product/spec coverage; product_db boosted
+  // Copilot     — web-grounded; URL/official sources boosted
+  const PLATFORM_WEIGHTS = {
+    perplexity: { citation: 1.25, url: 1.20, review: 1.00, official: 1.00, comparison: 1.00, social: 1.00, product_db: 1.00, general_knowledge: 0.80 },
+    chatgpt:    { citation: 0.85, url: 0.80, review: 1.00, official: 0.90, comparison: 1.00, social: 0.90, product_db: 0.90, general_knowledge: 1.20 },
+    gemini:     { citation: 0.90, url: 0.90, review: 1.00, official: 1.00, comparison: 1.00, social: 0.90, product_db: 1.25, general_knowledge: 1.00 },
+    copilot:    { citation: 1.00, url: 1.20, review: 1.00, official: 1.10, comparison: 1.00, social: 1.00, product_db: 1.00, general_knowledge: 0.90 },
+  };
+  const w = PLATFORM_WEIGHTS[platform] || PLATFORM_WEIGHTS.chatgpt;
+
+  function clamp(v) { return Math.min(1.0, Math.max(0.0, +v.toFixed(3))); }
+
+  // ── Build candidate sources ──────────────────────────────────────────────
+  const candidates = [];
+
+  // Official website — triggered by explicit official language OR raw URLs
+  const officialIndicators = [...officialMatches, ...urlMatches];
+  if (officialIndicators.length > 0) {
+    const base = 0.45 + Math.min(officialIndicators.length, 5) * 0.08;
+    candidates.push({
+      type: 'official_website',
+      name: 'Official Brand Website',
+      confidence: clamp(base * w.official),
+      indicators: officialIndicators.slice(0, 5),
+      freshness,
+    });
+  }
+
+  // Review site — review language AND/OR comparison/listicle language
+  const reviewIndicators = [...reviewMatches, ...comparisonMatches];
+  if (reviewIndicators.length > 0) {
+    const base = 0.40 + Math.min(reviewIndicators.length, 5) * 0.08;
+    candidates.push({
+      type: 'review_site',
+      name: 'Product Reviews',
+      confidence: clamp(base * w.review),
+      indicators: reviewIndicators.slice(0, 5),
+      freshness,
+    });
+  }
+
+  // Social media
+  if (socialMatches.length > 0) {
+    const base = 0.40 + Math.min(socialMatches.length, 5) * 0.09;
+    candidates.push({
+      type: 'social_media',
+      name: 'Community & Social Media',
+      confidence: clamp(base * w.social),
+      indicators: socialMatches.slice(0, 5),
+      freshness,
+    });
+  }
+
+  // News / citation-based — numbered brackets, "According to …", etc.
+  if (citationMatches.length > 0) {
+    const base = 0.50 + Math.min(citationMatches.length, 5) * 0.10;
+    candidates.push({
+      type: 'news_article',
+      name: 'Cited Sources',
+      confidence: clamp(base * w.citation),
+      indicators: citationMatches.slice(0, 5),
+      freshness,
+    });
+  }
+
+  // Product database — spec/dimension/SKU language
+  if (productDbMatches.length > 0) {
+    const base = 0.45 + Math.min(productDbMatches.length, 5) * 0.08;
+    candidates.push({
+      type: 'product_database',
+      name: 'Product Database',
+      confidence: clamp(base * w.product_db),
+      indicators: productDbMatches.slice(0, 5),
+      freshness,
+    });
+  }
+
+  // General knowledge — always present as a fallback; higher weight when no
+  // other strong signals exist (the response is purely from training data).
+  const generalBase = candidates.length === 0 ? 0.70 : 0.50;
+  const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
+  candidates.push({
+    type: 'general_knowledge',
+    name: `${platformLabel} Training Data`,
+    confidence: clamp(generalBase * w.general_knowledge),
+    indicators: [],
+    freshness: 'unknown',
+  });
+
+  // ── Sort by confidence descending ────────────────────────────────────────
+  candidates.sort((a, b) => b.confidence - a.confidence);
+
+  return candidates;
 }
 
 function findContentGaps(verifiedClaims, brandName) {

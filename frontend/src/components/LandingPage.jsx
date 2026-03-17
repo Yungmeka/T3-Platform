@@ -307,16 +307,11 @@ function FloatingPaths({ position }) {
           <path
             key={path.id}
             d={path.d}
-            pathLength="1"
             stroke={`url(#${gradId})`}
             strokeWidth={path.width}
             strokeOpacity={path.opacity}
             vectorEffect="non-scaling-stroke"
             className="floating-path"
-            style={{
-              '--fp-dur': `${20 + path.id * 0.5}s`,
-              '--fp-del': `${-path.id * 0.6}s`,
-            }}
           />
         ))}
         <defs>

@@ -364,32 +364,10 @@
   }
 }
 
-/* ═══ FLOATING PATHS ═══ */
+/* ═══ FLOATING PATHS (static) ═══ */
 .floating-path {
   fill: none;
   stroke-linecap: round;
-  stroke-dasharray: 0.3 0.7;          /* 30% visible, 70% gap — mimics pathLength: 0.3 */
-  stroke-dashoffset: 0;
-  animation: fp-travel var(--fp-dur, 25s) linear infinite;
-  animation-delay: var(--fp-del, 0s);
-  will-change: stroke-dashoffset, opacity;
-  transform: translateZ(0);
 }
 
-@keyframes fp-travel {
-  0%   { stroke-dashoffset: 0;   opacity: 0.3; }
-  50%  { stroke-dashoffset: 0.5; opacity: 0.6; }
-  100% { stroke-dashoffset: 1;   opacity: 0.3; }
-}
-
-.fp-container {
-  animation: fp-drift 60s ease-in-out infinite alternate;
-  will-change: transform;
-  transform-origin: center center;
-}
-
-@keyframes fp-drift {
-  0%   { transform: rotate(0deg) scale(1); }
-  50%  { transform: rotate(2deg) scale(1.02); }
-  100% { transform: rotate(-2deg) scale(1); }
-}
+.fp-container {}

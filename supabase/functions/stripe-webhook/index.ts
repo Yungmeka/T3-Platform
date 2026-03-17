@@ -44,7 +44,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  * from the allowed headers list for this endpoint.
  */
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "https://www.t3tx.com",
   "Access-Control-Allow-Headers": "content-type, stripe-signature",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };

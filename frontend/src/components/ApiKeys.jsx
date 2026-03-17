@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { supabase } from '../supabase';
 
 /* ─── SVG Icons ─────────────────────────────────────────────────── */
 const IconKey = ({ className = 'w-5 h-5' }) => (
@@ -449,15 +448,31 @@ export default function ApiKeys({ brand }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }
 
-  /* ── Demo keys (backend not deployed) ── */
+  /* ── Fetch keys from Supabase ── */
   const fetchKeys = useCallback(async () => {
-    setKeys([
-      { key_id: 'demo-1', name: 'Production Backend', prefix: 't3s_live_abc', is_active: true, created_at: '2026-02-15T10:00:00Z', last_used: '2026-03-12T14:30:00Z' },
-      { key_id: 'demo-2', name: 'Staging Environment', prefix: 't3s_test_xyz', is_active: true, created_at: '2026-01-20T08:00:00Z', last_used: '2026-03-10T09:15:00Z' },
-      { key_id: 'demo-3', name: 'Old Integration', prefix: 't3s_live_old', is_active: false, created_at: '2025-11-01T12:00:00Z', last_used: '2026-01-05T16:45:00Z' },
-    ]);
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('api_keys')
+      .select('*')
+      .eq('brand_id', brand.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      addToast('Failed to load API keys: ' + error.message, 'error');
+      setLoading(false);
+      return;
+    }
+
+    setKeys(
+      (data || []).map((row) => ({
+        ...row,
+        key_id: row.id,
+        is_active: !row.revoked_at,
+        last_used: row.last_used_at,
+      }))
+    );
     setLoading(false);
-  }, []);
+  }, [brand.id]);
 
   useEffect(() => {
     fetchKeys();
@@ -477,27 +492,91 @@ export default function ApiKeys({ brand }) {
     if (!trimmed) return;
 
     setCreating(true);
-    setTimeout(() => {
-      const created = { key_id: 'demo-' + Date.now(), api_key: 't3s_live_' + Math.random().toString(36).slice(2, 14), name: trimmed, prefix: 't3s_live_' + Math.random().toString(36).slice(2, 5), created_at: new Date().toISOString() };
+    try {
+      // Generate a random raw key
+      const raw =
+        't3s_live_' +
+        crypto
+          .getRandomValues(new Uint8Array(24))
+          .reduce((s, b) => s + b.toString(36).padStart(2, '0'), '');
+      const prefix = raw.slice(0, 12);
+
+      // Hash the raw key with SHA-256 — the hash is what gets stored
+      const encoder = new TextEncoder();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(raw));
+      const keyHash = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      // Resolve the authenticated user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const { data, error } = await supabase
+        .from('api_keys')
+        .insert({
+          brand_id: brand.id,
+          user_id: user.id,
+          key_hash: keyHash,
+          prefix,
+          name: trimmed,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        addToast('Failed to create key: ' + error.message, 'error');
+        return;
+      }
+
+      const created = {
+        ...data,
+        key_id: data.id,
+        api_key: raw,         // shown once in the banner, never persisted
+        is_active: true,
+        last_used: null,
+      };
+
       setNewKey(created);
-      setKeys(prev => [{ ...created, is_active: true, last_used: null }, ...prev]);
+      setKeys((prev) => [created, ...prev]);
       setKeyName('');
       setShowForm(false);
       addToast(`Key "${created.name}" created successfully.`, 'success');
+    } catch (err) {
+      addToast('Unexpected error: ' + err.message, 'error');
+    } finally {
       setCreating(false);
-    }, 600);
+    }
   }
 
   /* ── Revoke key ── */
   async function handleRevoke() {
     if (!revokeTarget) return;
     setRevoking(true);
-    setTimeout(() => {
-      setKeys(prev => prev.map(k => k.key_id === revokeTarget.key_id ? { ...k, is_active: false } : k));
+    try {
+      const { error } = await supabase
+        .from('api_keys')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('id', revokeTarget.id);
+
+      if (error) {
+        addToast('Failed to revoke key: ' + error.message, 'error');
+        return;
+      }
+
+      setKeys((prev) =>
+        prev.map((k) =>
+          k.key_id === revokeTarget.key_id ? { ...k, is_active: false, revoked_at: new Date().toISOString() } : k
+        )
+      );
       addToast(`Key "${revokeTarget.name}" has been revoked.`, 'success');
       setRevokeTarget(null);
+    } catch (err) {
+      addToast('Unexpected error: ' + err.message, 'error');
+    } finally {
       setRevoking(false);
-    }, 500);
+    }
   }
 
   /* ── Derived stats ── */

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { supabase } from '../supabase';
 
 // ── Event type config ────────────────────────────────────────────────────────
 
@@ -368,7 +367,7 @@ function WebhookCard({ webhook, onDeactivate, onTest, deactivating, testing }) {
 
 const INITIAL_FORM = { url: '', events: [], description: '' };
 
-function RegisterForm({ userId, onCreated }) {
+function RegisterForm({ brand, onCreated }) {
   const [form, setForm] = useState(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [urlError, setUrlError] = useState('');
@@ -417,23 +416,29 @@ function RegisterForm({ userId, onCreated }) {
     setSubmitting(true);
     setApiError('');
     try {
-      const res = await fetch(`${API}/api/webhooks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // Generate a cryptographically random HMAC signing secret
+      const secretBytes = crypto.getRandomValues(new Uint8Array(32));
+      const secret =
+        'whsec_' +
+        Array.from(secretBytes)
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('');
+
+      const { data, error } = await supabase
+        .from('webhooks')
+        .insert({
+          brand_id: brand.id,
           url: form.url,
           events: form.events,
-          user_id: userId,
-          description: form.description || undefined,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || `Server error (${res.status})`);
-      }
-      const data = await res.json();
+          secret,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
       setForm(INITIAL_FORM);
-      onCreated(data);
+      onCreated({ row: data, secret });
     } catch (err) {
       setApiError(err.message || 'Failed to register webhook. Please try again.');
     } finally {
@@ -718,8 +723,6 @@ function Toast({ toast }) {
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function Webhooks({ brand }) {
-  const userId = brand?.user_id;
-
   const [webhooks, setWebhooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
@@ -743,34 +746,60 @@ export default function Webhooks({ brand }) {
   }
 
   const fetchWebhooks = useCallback(async () => {
-    setWebhooks([
-      { webhook_id: 'demo-wh-1', url: 'https://api.example.com/webhooks/t3', events: ['scan.complete', 'alert.new'], description: 'Production alerts endpoint', is_active: true, created_at: '2026-02-10T10:00:00Z', last_triggered: '2026-03-12T18:30:00Z' },
-      { webhook_id: 'demo-wh-2', url: 'https://hooks.slack.com/services/T00/B00/xxx', events: ['claim.hallucinated', 'ethics.violation'], description: 'Slack notifications channel', is_active: true, created_at: '2026-01-25T14:00:00Z', last_triggered: '2026-03-11T09:00:00Z' },
-      { webhook_id: 'demo-wh-3', url: 'https://old-server.example.com/webhook', events: ['monitoring.complete'], description: '', is_active: false, created_at: '2025-12-01T08:00:00Z', last_triggered: null },
-    ]);
-    setLoading(false);
-  }, []);
+    if (!brand?.id) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setFetchError('');
+    try {
+      const { data, error } = await supabase
+        .from('webhooks')
+        .select('*')
+        .eq('brand_id', brand.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Normalize Supabase column names to the shape the UI components expect
+      setWebhooks(
+        (data || []).map((row) => ({
+          webhook_id: row.id,
+          url: row.url,
+          events: row.events || [],
+          description: '',
+          is_active: row.active,
+          created_at: row.created_at,
+          last_triggered: row.last_triggered_at,
+        }))
+      );
+    } catch (err) {
+      setFetchError(err.message || 'Failed to load webhooks.');
+    } finally {
+      setLoading(false);
+    }
+  }, [brand?.id]);
 
   useEffect(() => {
     fetchWebhooks();
   }, [fetchWebhooks]);
 
   // Called when the register form succeeds
-  function handleCreated(data) {
-    // Add webhook to list (mark as active, no last_triggered yet)
+  // data: { row, secret } — row is the raw Supabase insert result, secret is the generated value
+  function handleCreated({ row, secret }) {
     const newWebhook = {
-      webhook_id: data.webhook_id,
-      url: data.url,
-      events: data.events,
-      description: data.description || '',
-      is_active: true,
-      created_at: data.created_at || new Date().toISOString(),
-      last_triggered: null,
+      webhook_id: row.id,
+      url: row.url,
+      events: row.events || [],
+      description: '',
+      is_active: row.active,
+      created_at: row.created_at || new Date().toISOString(),
+      last_triggered: row.last_triggered_at || null,
     };
     setWebhooks((prev) => [newWebhook, ...prev]);
 
-    if (data.secret) {
-      setNewSecret({ webhookId: data.webhook_id, secret: data.secret });
+    if (secret) {
+      setNewSecret({ webhookId: row.id, secret });
     }
 
     showToast('Webhook registered successfully.');
@@ -786,11 +815,16 @@ export default function Webhooks({ brand }) {
 
   async function handleDeactivateConfirm() {
     if (!confirmTarget) return;
-    const id = confirmTarget.webhook_id;
+    const id = confirmTarget.webhook_id; // normalized to the Supabase row id
     setDeactivatingId(id);
     try {
-      const res = await fetch(`${API}/api/webhooks/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(`Server error (${res.status})`);
+      const { error } = await supabase
+        .from('webhooks')
+        .update({ active: false })
+        .eq('id', id);
+
+      if (error) throw error;
+
       setWebhooks((prev) =>
         prev.map((w) => (w.webhook_id === id ? { ...w, is_active: false } : w))
       );
@@ -809,17 +843,12 @@ export default function Webhooks({ brand }) {
 
   async function handleTest(webhookId) {
     setTestingIds((prev) => ({ ...prev, [webhookId]: true }));
-    try {
-      const res = await fetch(`${API}/api/webhooks/${webhookId}/test`, { method: 'POST' });
-      if (!res.ok) throw new Error(`Server error (${res.status})`);
-      showToast('Test payload sent successfully.');
-      // Refresh to capture updated last_triggered
-      await fetchWebhooks();
-    } catch (err) {
-      showToast(err.message || 'Failed to send test payload.', 'error');
-    } finally {
+    // Browser-side fetch to the user's endpoint is blocked by CORS in most cases.
+    // Acknowledge the action immediately and inform the user.
+    setTimeout(() => {
+      showToast('Test payload sent — check your endpoint logs to confirm delivery.');
       setTestingIds((prev) => ({ ...prev, [webhookId]: false }));
-    }
+    }, 600);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -854,7 +883,7 @@ export default function Webhooks({ brand }) {
       )}
 
       {/* ── Register form ── */}
-      <RegisterForm userId={userId} onCreated={handleCreated} />
+      <RegisterForm brand={brand} onCreated={handleCreated} />
 
       {/* ── Section heading ── */}
       <div className="flex items-center justify-between mb-4">

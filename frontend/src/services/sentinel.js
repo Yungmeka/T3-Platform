@@ -48,7 +48,7 @@ async function fetchWithRetry(url, options, { maxRetries = 2, timeoutMs = 30000 
 
 export async function runFullScan(brand, userId = null) {
   if (userId) {
-    const usage = await checkUsage(userId, 'scan');
+    const usage = await checkUsage(userId, 'scans');
     if (!usage.allowed) {
       return { error: 'Scan limit reached. Please upgrade your plan.', usage };
     }
@@ -165,7 +165,7 @@ export async function runFullScan(brand, userId = null) {
 
 export async function runVisibilityScan(queryText, brand, userId = null) {
   if (userId) {
-    const usage = await checkUsage(userId, 'scan');
+    const usage = await checkUsage(userId, 'scans');
     if (!usage.allowed) {
       return { error: 'Scan limit reached. Please upgrade your plan.', usage };
     }
@@ -313,7 +313,7 @@ export async function runVisibilityScan(queryText, brand, userId = null) {
 
 export async function runLiveQuery(queryText, brand, userId = null) {
   if (userId) {
-    const usage = await checkUsage(userId, 'api_call');
+    const usage = await checkUsage(userId, 'api_calls');
     if (!usage.allowed) {
       return { error: 'API call limit reached. Please upgrade your plan.', usage };
     }
@@ -631,7 +631,7 @@ export async function generateOptimizedContent(product, brandName, userId = null
 
 export async function factCheck(text, brand, userId = null) {
   if (userId) {
-    const usage = await checkUsage(userId, 'api_call');
+    const usage = await checkUsage(userId, 'api_calls');
     if (!usage.allowed) {
       return { error: 'API call limit reached. Please upgrade your plan.', usage };
     }

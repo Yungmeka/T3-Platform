@@ -368,6 +368,18 @@
 .floating-path {
   fill: none;
   stroke-linecap: round;
+  stroke-dasharray: 0.3 0.7;          /* 30% visible, 70% gap — mimics pathLength: 0.3 */
+  stroke-dashoffset: 0;
+  animation: fp-travel var(--fp-dur, 25s) linear infinite;
+  animation-delay: var(--fp-del, 0s);
+  will-change: stroke-dashoffset, opacity;
+  transform: translateZ(0);
+}
+
+@keyframes fp-travel {
+  0%   { stroke-dashoffset: 0;   opacity: 0.3; }
+  50%  { stroke-dashoffset: 0.5; opacity: 0.6; }
+  100% { stroke-dashoffset: 1;   opacity: 0.3; }
 }
 
 .fp-container {

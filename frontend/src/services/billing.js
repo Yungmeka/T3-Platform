@@ -256,16 +256,42 @@ export async function createCheckoutSession(priceId, userId, userEmail) {
 }
 
 /**
- * Open the Stripe Customer Portal so the user can manage their subscription.
- * Note: This requires a portal configuration in Stripe Dashboard.
- * For now, redirects to the billing page with a message.
+ * Open the Stripe Customer Portal so the user can manage their subscription
+ * (change plan, update payment method, cancel, etc.).
  *
- * @param {string} userId
- * @returns {null}
+ * Calls the stripe-portal Edge Function which creates a Billing Portal
+ * Session server-side and returns the hosted URL for the browser to redirect
+ * to. Requires a Customer Portal configuration to exist in the Stripe
+ * Dashboard (Settings > Billing > Customer portal).
+ *
+ * @param {string} userId  — Supabase user ID
+ * @returns {{ url: string } | null}
  */
 export async function createPortalSession(userId) {
-  // Stripe Customer Portal requires a server-side session creation.
-  // This will be implemented as a separate Edge Function when needed.
-  console.log('[billing] Portal session requested for:', userId);
-  return null;
+  if (!userId) return null;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/stripe-portal`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({
+        userId,
+        returnUrl: `${window.location.origin}/billing`,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('[billing] createPortalSession error:', err.error || res.statusText);
+      return null;
+    }
+
+    return await res.json(); // { url }
+  } catch (err) {
+    console.error('[billing] createPortalSession fetch error:', err.message);
+    return null;
+  }
 }

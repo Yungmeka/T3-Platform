@@ -36,7 +36,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "https://www.t3tx.com",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -54,6 +54,38 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function errorResponse(message: string, status = 400): Response {
   return jsonResponse({ error: message }, status);
+}
+
+/**
+ * Verify the Supabase JWT from the Authorization header.
+ * Returns the user's UUID if valid, or null if invalid/missing.
+ */
+async function verifyJWT(req: Request): Promise<string | null> {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceRoleKey) return null;
+
+  try {
+    // Verify the JWT by calling Supabase auth
+    const resp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: serviceRoleKey,
+      },
+    });
+
+    if (!resp.ok) return null;
+
+    const user = await resp.json();
+    return user?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -294,6 +326,12 @@ serve(async (req: Request): Promise<Response> => {
     return errorResponse("Method not allowed", 405);
   }
 
+  // ── Authenticate ─────────────────────────────────────────────────
+  const userId = await verifyJWT(req);
+  if (!userId) {
+    return errorResponse("Unauthorized: valid authentication required", 401);
+  }
+
   // ── Environment ───────────────────────────────────────────────────────────
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
   if (!stripeKey) {
@@ -315,7 +353,11 @@ serve(async (req: Request): Promise<Response> => {
     return errorResponse(validation.error);
   }
 
-  const { priceId, userId, userEmail, successUrl, cancelUrl } = validation.data;
+  if (userId !== validation.data.userId) {
+    return errorResponse("Forbidden: userId mismatch", 403);
+  }
+
+  const { priceId, userEmail, successUrl, cancelUrl } = validation.data;
 
   console.log("[stripe-checkout] Creating session", {
     userId,

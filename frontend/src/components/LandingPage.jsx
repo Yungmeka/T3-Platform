@@ -366,10 +366,6 @@ function HeroSection({ onGetStarted }) {
         background: '#F5F7FA',
       }}
     >
-      {/* Floating animated paths */}
-      <FloatingPaths position={1} />
-      <FloatingPaths position={-1} />
-
       {/* Background blobs */}
       <Blob style={{ top: '-120px', left: '-160px', width: '560px', height: '560px', background: 'rgba(124,58,237,0.10)' }} />
       <Blob style={{ bottom: '-100px', right: '-140px', width: '500px', height: '500px', background: 'rgba(249,115,22,0.07)' }} />

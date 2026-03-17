@@ -291,12 +291,9 @@ function FloatingPaths({ position }) {
         pointerEvents: 'none',
         opacity: 0.5,
         overflow: 'hidden',
-        willChange: 'transform',
-        transform: 'translateZ(0)',
       }}
     >
       <svg
-        className="fp-container"
         style={{ width: '100%', height: '100%' }}
         viewBox="0 0 696 316"
         fill="none"
@@ -311,7 +308,8 @@ function FloatingPaths({ position }) {
             strokeWidth={path.width}
             strokeOpacity={path.opacity}
             vectorEffect="non-scaling-stroke"
-            className="floating-path"
+            fill="none"
+            strokeLinecap="round"
           />
         ))}
         <defs>
@@ -366,6 +364,10 @@ function HeroSection({ onGetStarted }) {
         background: '#F5F7FA',
       }}
     >
+      {/* Static decorative paths */}
+      <FloatingPaths position={1} />
+      <FloatingPaths position={-1} />
+
       {/* Background blobs */}
       <Blob style={{ top: '-120px', left: '-160px', width: '560px', height: '560px', background: 'rgba(124,58,237,0.10)' }} />
       <Blob style={{ bottom: '-100px', right: '-140px', width: '500px', height: '500px', background: 'rgba(249,115,22,0.07)' }} />
